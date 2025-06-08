@@ -80,9 +80,9 @@ public:
         // 範例：創建一個房間的牆壁
         walls.clear();
         
-        glm::vec3 roomCenter = glm::vec3(0.0f, 10.1f, 0.0f);
+        glm::vec3 roomCenter = glm::vec3(0.0f, 21.5f, 0.0f);
                 
-        float roomHalfSize = 8.6f;
+        float roomHalfSize = 20.0f;
         // 牆壁厚度
         float wallThickness = 2.0f;
 

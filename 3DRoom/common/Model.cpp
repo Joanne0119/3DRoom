@@ -101,6 +101,11 @@ void Model::ProcessMaterials(const std::vector<tinyobj::material_t>& objMaterial
             mat.specularTexture = LoadTexture(mat.specularTexPath);
         }
         
+        if (!objMat.alpha_texname.empty()) {
+            mat.alphaTexPath = directory + "/" + objMat.alpha_texname;
+            mat.alphaTexture = LoadTexture(mat.alphaTexPath);
+        }
+        
         materials.push_back(mat);
     }
 }
@@ -290,6 +295,12 @@ GLuint Model::LoadTexture(const std::string& path) {
         // 上傳紋理數據
         glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         
+        if (path.find("alpha") != std::string::npos) {
+            std::cout << "Loading alpha texture: " << path << std::endl;
+            std::cout << "Alpha texture size: " << width << "x" << height
+                      << ", components: " << nrComponents << std::endl;
+        }
+        
         // 檢查紋理上傳是否成功
         error = glGetError();
         if (error != GL_NO_ERROR) {
@@ -333,32 +344,63 @@ GLuint Model::LoadTexture(const std::string& path) {
 void Model::Render(GLuint shaderProgram) {
     // 確保 shader 程式是當前使用的
     glUseProgram(shaderProgram);
-    // 如果有透明物體，需要啟用混合
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    
+    std::vector<size_t> opaqueMeshes;
+    std::vector<size_t> transparentMeshes;
+    
     for (size_t i = 0; i < meshes.size(); i++) {
         const Mesh& mesh = meshes[i];
+        bool isTransparent = false;
+        
+        if (mesh.materialIndex >= 0 && mesh.materialIndex < materials.size()) {
+            const Material& material = materials[mesh.materialIndex];
+            isTransparent = (material.alpha < 1.0f) || (material.alphaTexture != 0);
+        }
+        
+        if (isTransparent) {
+            transparentMeshes.push_back(i);
+        } else {
+            opaqueMeshes.push_back(i);
+        }
+    }
+    // 如果有透明物體，需要啟用混合
+    glDisable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    
+    for (size_t i : opaqueMeshes) {
+        RenderMesh(i, shaderProgram);
+    }
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);  // 禁止寫入深度緩衝區，但仍進行深度測試
+    
+    for (size_t i : transparentMeshes) {
+        RenderMesh(i, shaderProgram);
+    }
 
-        std::cout << "  Rendering mesh " << i << " (Material Index: " << mesh.materialIndex << ")" << std::endl;
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+}
 
-        // 重置紋理單元 (確保乾淨的狀態)
-        glActiveTexture(GL_TEXTURE0);
+void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
+    const Mesh& mesh = meshes[meshIndex];
+    
+    // 重置紋理單元
+    for (int i = 0; i < 4; i++) {
+        glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, 0);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glActiveTexture(GL_TEXTURE3);  // 透明度貼圖
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-
-        // 設置預設值 (如果沒有材質)
-        glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasDiffuseTexture"), 0);
-        glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasNormalTexture"), 0);
-        glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasSpecularTexture"), 0);
-        glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.alpha"), 1.0f);
-
+    }
+    
+    // 設置預設值
+    glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasDiffuseTexture"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasNormalTexture"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasSpecularTexture"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 0);
+    glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.alpha"), 1.0f);
+    
+    // 綁定材質（您現有的材質綁定代碼）
+    if (mesh.materialIndex >= 0 && mesh.materialIndex < materials.size()) {
         // 綁定材質
         if (mesh.materialIndex >= 0 && mesh.materialIndex < materials.size()) {
             const Material& material = materials[mesh.materialIndex];
@@ -428,26 +470,29 @@ void Model::Render(GLuint shaderProgram) {
                 glActiveTexture(GL_TEXTURE3);
                 glBindTexture(GL_TEXTURE_2D, material.alphaTexture);
                 glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.alphaTexture"), 3);
-                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 1);
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 1);  // 添加這行！
                 std::cout << "    Using alpha texture" << std::endl;
+            } else {
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 0);  // 添加這行！
+                std::cout << "    No alpha texture" << std::endl;
             }
 
         } else {
             std::cout << "  Mesh has no material assigned" << std::endl;
         }
-
-        // 渲染網格
-        glBindVertexArray(mesh.VAO);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-
-        // 檢查 OpenGL 錯誤
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            std::cerr << "  OpenGL error during rendering: " << error << std::endl;
-        }
     }
-
+    
+    // 渲染
+    glBindVertexArray(mesh.VAO);
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+    
+    // 檢查 OpenGL 錯誤
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "  OpenGL error during rendering: " << error << std::endl;
+    }
+    
     // 清理紋理綁定
     for (int i = 0; i < 4; i++) {
         glActiveTexture(GL_TEXTURE0 + i);

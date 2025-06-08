@@ -1,23 +1,23 @@
 //設計一個房間，至少包含六個區域，可以不用柱子，直接用兩個四方形做區隔即可，右邊為示意圖，你可以自己設計，綠色表示鏡頭一開始的位置
 //(12%)畫出六個房間，並達成以下的條件（編譯要能過且正常執行才算）
-//每一面牆都必須有貼圖
-//必須至少有三個房間是使用燈光照明，而且是使用 Per Pixel Lighting
-//每一個房間中都必須有放置裝飾品(部分必須有貼圖)
-//(2%) 必須有房間顯示至少(含)一個 OBJ 檔的模型，而且包含貼圖
+    //每一面牆都必須有貼圖
+    //必須至少有三個房間是使用燈光照明，而且是使用 Per Pixel Lighting
+    //每一個房間中都必須有放置裝飾品(部分必須有貼圖)
+// ✓ (2%) 必須有房間顯示至少(含)一個 OBJ 檔的模型，而且包含貼圖
 //(8%)環境與操控
-//(2%) 鏡頭的移動是根據目前的視角方向
-//(2%) 不會穿牆
-//(2%) 會被機關觸動的動態移動光源，使用 Per Pixel Lighting
-//(2%) 至少三面牆壁上半透明的玻璃
+    // ✓ (2%) 鏡頭的移動是根據目前的視角方向
+    //(2%) 不會穿牆
+    //(2%) 會被機關觸動的動態移動光源，使用 Per Pixel Lighting
+    //(2%) 至少三面牆壁上半透明的玻璃
 //(8 %)圖學相關功能的使用，必須在程式碼中以註解清楚標明
-//(1%) 針對特定物件實現 Billboards 的功能
-//(1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
-//(2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
-//(2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
+    //(1%) 針對特定物件實現 Billboards 的功能
+    //(1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
+    //(2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
+    // ✓ (2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
 //(2%) 有物件使用到 Environment Map 的功能 (有具體的說明在程式碼中）
 //(6%) 其他你覺得可以展示的技術，包含物理或是數學的運算
-//(3%)發射子彈並且在牆壁上留下彈孔
-//(3%)可以破壞房間內的擺設
+    //(3%)發射子彈並且在牆壁上留下彈孔
+    //(3%)可以破壞房間內的擺設
 //(4%) 創意分數
 //老師給分，請自行發揮
 
@@ -66,7 +66,7 @@ CollisionManager g_collisionManager;
 CTorusKnot g_tknot(4);
 CSphere g_sphere;
 
-glm::vec3 g_eyeloc(5.0f, 5.0f, 5.0f); // 鏡頭位置, 預設在 (8,8,8)
+glm::vec3 g_eyeloc(3.0f, 6.0f, 10.0f);
 CCube g_centerloc; // view center預設在 (0,0,0)，不做任何描繪操作
 CQuad g_floor[ROW_NUM][ROW_NUM]; 
 
@@ -90,50 +90,86 @@ GLint g_2dviewLoc, g_2dProjLoc;
 CLightManager lightManager;
 // 全域光源 (位置在 5,5,0)
 CLight* g_light = new CLight(
-       glm::vec3(3.5f, 5.5f, 0.0f),           // 位置
-       glm::vec4(0.3f, 0.3f, 0.3f, 1.0f),     // 環境光 - 較高比例
-       glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),     // 漫反射 - 中等強度
-       glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),     // 鏡面反射 - 較低
-       1.0f, 0.09f, 0.032f                    // 衰減參數
-   );
-//
-//// 創建第一個點光源
-CLight* pointLight1 = new CLight(
-     glm::vec3(0.0f, 10.0f, 0.0f),           // 位置
-     glm::vec4(0.3f, 0.3f, 0.3f, 1.0f),     // 環境光
-     glm::vec4(0.8f, 0.8f, 0.8f, 1.0f),     // 漫反射
-     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),     // 鏡面反射 - 較低
-    1.0f, 0.09f, 0.032f                    // 衰減參數            // attenuation
+    glm::vec3(0.0f, 10.0f, 12.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),  // 環境光設定為非常亮的灰色
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
 );
 
-// 創建聚光燈
-CLight* spotLight1 = new CLight(
-    glm::vec3(-4.0f, 10.0f, 4.0f),        // position
-    glm::vec3(-3.8f, 0.0f, 3.8f),        // target
-    12.5f, 20.5f, 2.5f,                 // inner/outer cutoff, exponent
-    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
-    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
-    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
-    1.0f, 0.09f, 0.032f                  // attenuation
+CLight* g_light2 = new CLight(
+    glm::vec3(28.0f, 10.0f, 12.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
 );
-CLight* spotLight2 = new CLight(
-    glm::vec3(0.0f, 10.0f, -5.0f),        // position
-    glm::vec3(0.0f, 0.0f, -5.0f),        // target
-    12.5f, 17.5f, 2.0f,                 // inner/outer cutoff, exponent
-    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
-    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
-    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
-    1.0f, 0.09f, 0.032f                  // attenuation
+CLight* g_light3 = new CLight(
+    glm::vec3(-28.0f, 10.0f, 12.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
 );
-CLight* spotLight3 = new CLight(
-    glm::vec3(4.0f, 10.0f, 0.0f),        // position
-    glm::vec3(4.0f, 0.0f, 4.0f),        // target
-    12.5f, 17.5f, 2.0f,                 // inner/outer cutoff, exponent
-    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
-    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
-    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
-    1.0f, 0.09f, 0.032f                  // attenuation
+CLight* g_light4 = new CLight(
+    glm::vec3(-28.0f, 10.0f, -15.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
 );
+CLight* g_light5 = new CLight(
+    glm::vec3(0.0f, 10.0f, -15.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
+);
+CLight* g_light6 = new CLight(
+    glm::vec3(28.0f, 10.0f, -15.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
+);
+//
+//// 創建第一個點光源
+//CLight* pointLight1 = new CLight(
+//     glm::vec3(0.0f, 10.0f, 0.0f),           // 位置
+//     glm::vec4(0.3f, 0.3f, 0.3f, 1.0f),     // 環境光
+//     glm::vec4(0.8f, 0.8f, 0.8f, 1.0f),     // 漫反射
+//     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),     // 鏡面反射 - 較低
+//    1.0f, 0.09f, 0.032f                    // 衰減參數            // attenuation
+//);
+//
+//// 創建聚光燈
+//CLight* spotLight1 = new CLight(
+//    glm::vec3(-4.0f, 10.0f, 4.0f),        // position
+//    glm::vec3(-3.8f, 0.0f, 3.8f),        // target
+//    12.5f, 20.5f, 2.5f,                 // inner/outer cutoff, exponent
+//    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
+//    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
+//    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
+//    1.0f, 0.09f, 0.032f                  // attenuation
+//);
+//CLight* spotLight2 = new CLight(
+//    glm::vec3(0.0f, 10.0f, -5.0f),        // position
+//    glm::vec3(0.0f, 0.0f, -5.0f),        // target
+//    12.5f, 17.5f, 2.0f,                 // inner/outer cutoff, exponent
+//    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
+//    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
+//    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
+//    1.0f, 0.09f, 0.032f                  // attenuation
+//);
+//CLight* spotLight3 = new CLight(
+//    glm::vec3(4.0f, 10.0f, 0.0f),        // position
+//    glm::vec3(4.0f, 0.0f, 4.0f),        // target
+//    12.5f, 17.5f, 2.0f,                 // inner/outer cutoff, exponent
+//    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
+//    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
+//    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
+//    1.0f, 0.09f, 0.032f                  // attenuation
+//);
 
 
 
@@ -150,20 +186,10 @@ CMaterial g_matWoodBleached;
 std::vector<std::unique_ptr<Model>> models;
 std::vector<glm::mat4> modelMatrices;
 std::vector<std::string> modelPaths = {
-//    "models/woodCube.obj",
-    "models/Elephant_Toy.obj",
-    "models/Elephant_Toy.obj",
-    "models/House.obj",
-    "models/Truck.obj",
-    "models/Light.obj",
-    "models/Light.obj",
-    "models/Light.obj",
-//    "models/Light.obj",
-    "models/Rocket.obj",
-    "models/Bear.obj",
-    "models/Teddy.obj",
-    
+    "models/Room001.obj",
+    "models/Room001Window.obj"
 };
+
 void genMaterial();
 void renderModel(const std::string& modelName, const glm::mat4& modelMatrix);
 void adjustShaderEffects(float normalStrength, float specularStrength, float specularPower);
@@ -177,24 +203,27 @@ void loadScene(void)
     
     adjustShaderEffects(3.0f, 4.0f, 2.0f);
     
+    g_light->setIntensity(6.0);
+    g_light2->setIntensity(6.0);
+    g_light3->setIntensity(6.0);
+    g_light4->setIntensity(6.0);
+    g_light5->setIntensity(6.0);
+    g_light6->setIntensity(6.0);
     lightManager.addLight(g_light);
-    lightManager.addLight(pointLight1);
-    lightManager.addLight(spotLight1);
-    lightManager.addLight(spotLight2);
-    lightManager.addLight(spotLight3);
+    lightManager.addLight(g_light2);
+    lightManager.addLight(g_light3);
+    lightManager.addLight(g_light4);
+    lightManager.addLight(g_light5);
+    lightManager.addLight(g_light6);
+//    lightManager.addLight(pointLight1);
+//    lightManager.addLight(spotLight1);
+//    lightManager.addLight(spotLight2);
+//    lightManager.addLight(spotLight3);
     
     lightManager.setShaderID(g_shadingProg);
 //    g_light.setShaderID(g_shadingProg, "uLight");
-    for (int i = 0; i < lightManager.getLightCount(); i++) {
-        CLight* light = lightManager.getLight(i);
-        if (light) {
-            glm::vec4 diffuse = light->getDiffuse();
-            printf("Light %d diffuse: %.3f, %.3f, %.3f, %.3f\n",
-                   i, diffuse.r, diffuse.g, diffuse.b, diffuse.w);
-        }
-    }
     
-    initializeCollisionSystem();
+//    initializeCollisionSystem();
     g_tknot.setupVertexAttributes();
     g_tknot.setShaderID(g_shadingProg, 3);
     g_tknot.setScale(glm::vec3(0.4f, 0.4f, 0.4f));
@@ -206,13 +235,13 @@ void loadScene(void)
         auto model = std::make_unique<Model>();
         if (model->LoadModel(path)) {
             models.push_back(std::move(model));
-            modelMatrices.push_back(glm::mat4(1.0f)); // 初始化為單位矩陣
+            modelMatrices.push_back(glm::mat4(1.0f));
             std::cout << "Successfully loaded: " << path << std::endl;
         } else {
             std::cout << "Failed to load: " << path << std::endl;
         }
     }
-
+    
 	CCamera::getInstance().updateView(g_eyeloc); // 設定 eye 位置
     CCamera::getInstance().updateCenter(glm::vec3(0,4,0));
 	CCamera::getInstance().updatePerspective(45.0f, (float)SCREEN_WIDTH / SCREEN_HEIGHT, 0.1f, 100.0f);
@@ -279,52 +308,13 @@ void render(void)
     GLint modelLoc = glGetUniformLocation(g_shadingProg, "mxModel");
     for (size_t i = 0; i < models.size(); ++i) {
         glm::mat4 modelMatrix = modelMatrices[i];
-        if (i == 0) { // woodCube
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(-2.0f, 2.3f, 0.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.8f));
-        } else
-        if (i == 1) { // Elephant_Toy
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 2.8f, 0.0f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(2.5f));
-        } else if (i == 2) { // House
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 1.5f, 0.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(3.0f));
-        }else if (i == 3) { // Truck
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(4.0f, 1.5f, 2.2f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(225.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        }else if (i == 4) { // Spotlight1
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(-4.0f, 8.0f, 4.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(1.0f, .0f, 0.0f));
-        }else if (i == 5) { // Spotlight2
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 8.0f, -5.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        }else if (i == 6) { // Spotlight3
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(4.0f, 8.0f, 4.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-//        }else if (i == 8) { // g_light
-//            modelMatrix = glm::translate(modelMatrix, glm::vec3(3.5f, 5.5f, 0.0f));
-//            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-//            modelMatrix = glm::rotate(modelMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-//            modelMatrix = modelMatrix * models[i]->getModelMatrix();
-//            models[8]->setFollowLight(g_light);
-            
-        }else if (i == 7) { // Rocket
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(-0.5f, 1.5f, -5.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.8f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        } else if (i == 8) { // Bear
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(4.0f, 1.5f, 4.2f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.3f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(220.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        } else if (i == 9) { // Teddy
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(-4.0f, 2.15f, 4.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.6f));
-            modelMatrix = glm::rotate(modelMatrix, glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        if (i == 0) { 
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+        }
+        if (i == 1) {
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
         }
         
         if (modelLoc != -1) {

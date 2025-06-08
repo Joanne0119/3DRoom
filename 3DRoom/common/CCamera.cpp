@@ -3,7 +3,7 @@
 #include <iostream>
 #include "typedefs.h"
 #include "CollisionManager.h"
-extern CollisionManager g_collisionManager;
+//extern CollisionManager g_collisionManager;
 
 using namespace glm;
 
@@ -147,50 +147,11 @@ void CCamera::updateViewMatrix(float theta, float phi)
 }
 
 void CCamera::updateRadius(float delta) {
-//    float oldRadius = _radius; // Store the old radius
     _radius += delta;
-
-    // Apply the minimum radius constraint
-    if (_radius < 1.0f) {
-        _radius = 1.0f;
-    }
-
-    // Calculate the potential new camera position
-    glm::vec3 potentialView;
-    potentialView.x = _center.x + _radius * sin(_phi) * cos(_theta);
-    potentialView.y = _center.y + _radius * cos(_phi);
-    potentialView.z = _center.z + _radius * sin(_phi) * sin(_theta);
-
-    // Get the current camera location (before radius update) for collision check
-    glm::vec3 currentViewLocation = _view; // This is the camera's current position
-
-    // Use CollisionManager to get a safe movement from current to potential position
-    // We can think of this as moving from 'currentViewLocation' to 'potentialView'
-    // and letting the collision manager tell us the safe displacement.
-    glm::vec3 desiredMovement = potentialView - currentViewLocation;
-    glm::vec3 safeMovement = g_collisionManager.getSafeMovement(desiredMovement, currentViewLocation);
-
-    // Apply the safe movement to the current view to get the final new view position
-    glm::vec3 newView = currentViewLocation + safeMovement;
-
-    // Update the camera's position
-    _view = newView;
-
-    // Now, re-calculate the radius based on the *actual* new view position
-    // This is important because if safeMovement was less than desiredMovement,
-    // the actual radius might be different from the initially calculated _radius.
-    _radius = glm::length(_view - _center);
-
-    // Ensure _radius is at least 1.0f after recalculation to avoid issues with center.
-    if (_radius < 1.0f) {
-        _radius = 1.0f;
-        // If it snaps to 1.0f, recalculate _view to be exactly at 1.0f radius from _center
-        _view.x = _center.x + _radius * sin(_phi) * cos(_theta);
-        _view.y = _center.y + _radius * cos(_phi);
-        _view.z = _center.z + _radius * sin(_phi) * sin(_theta);
-    }
-    
-    // Update the view matrix with the (potentially corrected) _view position
+    if (_radius < 1.0f) _radius = 1.0f; 
+    _view.x = _center.x + _radius * sin(_phi) * cos(_theta);
+    _view.y = _center.y + _radius * cos(_phi);
+    _view.z = _center.z + _radius * sin(_phi) * sin(_theta);
     updateViewMatrix();
 }
 

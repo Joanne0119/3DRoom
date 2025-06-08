@@ -31,10 +31,10 @@ extern CCube g_centerloc;
 extern GLuint g_shadingProg;
 extern glm::vec3 g_eyeloc;
 extern CLight* g_light;
-extern CLight* pointLight1;
-extern CLight* spotLight1;
-extern CLight* spotLight2;
-extern CLight* spotLight3;
+//extern CLight* pointLight1;
+//extern CLight* spotLight1;
+//extern CLight* spotLight2;
+//extern CLight* spotLight3;
 
 extern std::array<CButton, 4> g_button;
 extern std::vector<std::unique_ptr<Model>> models;
@@ -137,27 +137,27 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
                     g_light->setLightOn(true);
                 }
             }
-            if (g_button[1].handleClick((float)xpos, height - (float)ypos)) {
-                if(spotLight1->isLightOn() == true){
-                    spotLight1->setLightOn(false);
-                }else{
-                    spotLight1->setLightOn(true);
-                }
-            }
-            if (g_button[2].handleClick((float)xpos, height - (float)ypos)) {
-                if(spotLight2->isLightOn() == true){
-                    spotLight2->setLightOn(false);
-                }else{
-                    spotLight2->setLightOn(true);
-                }
-            }
-            if (g_button[3].handleClick((float)xpos, height - (float)ypos)) {
-                if(spotLight3->isLightOn() == true){
-                    spotLight3->setLightOn(false);
-                }else{
-                    spotLight3->setLightOn(true);
-                }
-            }
+//            if (g_button[1].handleClick((float)xpos, height - (float)ypos)) {
+//                if(spotLight1->isLightOn() == true){
+//                    spotLight1->setLightOn(false);
+//                }else{
+//                    spotLight1->setLightOn(true);
+//                }
+//            }
+//            if (g_button[2].handleClick((float)xpos, height - (float)ypos)) {
+//                if(spotLight2->isLightOn() == true){
+//                    spotLight2->setLightOn(false);
+//                }else{
+//                    spotLight2->setLightOn(true);
+//                }
+//            }
+//            if (g_button[3].handleClick((float)xpos, height - (float)ypos)) {
+//                if(spotLight3->isLightOn() == true){
+//                    spotLight3->setLightOn(false);
+//                }else{
+//                    spotLight3->setLightOn(true);
+//                }
+//            }
         }
         else if (action == GLFW_RELEASE)
         {
@@ -238,7 +238,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     float shin;
 
     // 移動速度常數
-    const float moveSpeed = 0.1f;
+    const float moveSpeed = 1.0f;
 
     switch (key)
     {
@@ -277,54 +277,54 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                     char letter = (isShiftPressed) ? ('A' + (key - GLFW_KEY_A)) : ('a' + (key - GLFW_KEY_A));
                     std::cout << "key = " << letter << std::endl;
                     switch (letter) {
-                        case 'r': // diffuse（紅色調）
-                            spotLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            break;
-                        case 'R':
-                            spotLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
-                            break;
-                        case 'b': // diffuse（藍色調）
-                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            break;
-                        case 'B':
-                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
-                            break;
-                        case 'g': // diffuse（綠色調）
-                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            break;
-                        case 'G':
-                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
-                            break;
-                        case 'n': // diffuse（白色調）
-                            spotLight1->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-                            break;
-                        case 'N':
-                            spotLight1->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
-                            spotLight2->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
-                            spotLight3->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
-                            pointLight1->setDiffuse(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-                            break;
+//                        case 'r': // diffuse（紅色調）
+//                            spotLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            break;
+//                        case 'R':
+//                            spotLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(1.0f, 0.5f, 0.5f, 1.0f));
+//                            break;
+//                        case 'b': // diffuse（藍色調）
+//                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            break;
+//                        case 'B':
+//                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.3f, 0.8f, 1.0f));
+//                            break;
+//                        case 'g': // diffuse（綠色調）
+//                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            break;
+//                        case 'G':
+//                            spotLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(0.3f, 0.8f, 0.5f, 1.0f));
+//                            break;
+//                        case 'n': // diffuse（白色調）
+//                            spotLight1->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+//                            break;
+//                        case 'N':
+//                            spotLight1->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
+//                            spotLight2->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
+//                            spotLight3->setDiffuse(glm::vec4(0.6f, 0.6f, 0.6f, 1.0f));
+//                            pointLight1->setDiffuse(glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+//                            break;
                         case 'P':
                         case 'p':
                             if (CCamera::getInstance().getProjectionType() != CCamera::Type::PERSPECTIVE) {

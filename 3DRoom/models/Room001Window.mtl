@@ -1,0 +1,14 @@
+# Blender 4.1.1 MTL File: 'cube.blend'
+# www.blender.org
+
+newmtl roomWindow
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+d  0.800000
+map_Kd textures/room02_color.png
+map_Ks textures/room01_roughness.png
+map_d textures/room01_alpha.png
+norm textures/room02_normal.png

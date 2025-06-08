@@ -103,14 +103,18 @@ void main() {
 
     if(uMaterial.hasDiffuseTexture) {
         texDiffuse = texture(uMaterial.diffuseTexture, vTexCoord);
-        finalAlpha *= texDiffuse.a;
+//        finalAlpha *= texDiffuse.a;
     }
     
     if(uMaterial.hasAlphaTexture) {
-        float alphaFromTexture = texture(uMaterial.alphaTexture, vTexCoord).r;
-        finalAlpha *= alphaFromTexture;
+        vec4 alphaTexture = texture(uMaterial.alphaTexture, vTexCoord);
+//        float alphaFromTexture = max(max(alphaTexture.r, alphaTexture.g),max(alphaTexture.b, alphaTexture.a));
+         float alphaFromTexture = alphaTexture.a;  // Alpha
+        // float alphaFromTexture = alphaTexture.r;  // Red
+        // float alphaFromTexture = alphaTexture.g;  // Green
+        finalAlpha = alphaFromTexture;
     }
-    
+//     finalAlpha = max(finalAlpha, 0.1);
     if(finalAlpha < 0.01) {
        discard;
    }
@@ -181,7 +185,7 @@ void main() {
 //    finalColor.rgb = finalColor.rgb / (finalColor.rgb + vec3(1.0));
 //    finalColor.rgb = pow(finalColor.rgb, vec3(1.0/2.2)); // Gamma correction
     finalColor = clamp(finalColor, 0.0, 1.0);
-    finalColor.a = finalAlpha; 
+    finalColor.a = finalAlpha;
     FragColor = finalColor;
     
 }

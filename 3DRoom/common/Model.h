@@ -53,7 +53,21 @@ struct Material {
     std::string specularTexPath;
     std::string alphaTexPath;
     
-    Material() : shininess(32.0f), alpha(1.0f), diffuseTexture(0), normalTexture(0), specularTexture(0), alphaTexture(0) {
+    GLuint environmentMapTexture;    // Cube Map 環境貼圖 ID
+    GLuint environmentTexture2D;     // 或使用 Equirectangular 格式的 2D 紋理 ID
+    std::string environmentMapPath;  // 環境貼圖路徑
+    
+    // 環境貼圖屬性
+    bool hasEnvironmentMap;
+    float reflectivity;             // 反射強度 (0.0 - 1.0)
+    float refractionIndex;          // 折射率
+    bool isEquirectangular;
+    
+    Material() : shininess(32.0f), alpha(1.0f),
+                 diffuseTexture(0), normalTexture(0), specularTexture(0), alphaTexture(0),
+                 environmentMapTexture(0), environmentTexture2D(0),
+                 hasEnvironmentMap(false), reflectivity(0.3f), refractionIndex(1.0f),
+                 isEquirectangular(false) {
         ambient[0] = ambient[1] = ambient[2] = 0.2f;
         diffuse[0] = diffuse[1] = diffuse[2] = 0.8f;
         specular[0] = specular[1] = specular[2] = 1.0f;
@@ -109,6 +123,8 @@ public:
     
     // 渲染模型
     void Render(GLuint shaderProgram);
+    
+    void RenderMesh(size_t meshIndex, GLuint shaderProgram);
     
     // 清理資源
     void Cleanup();
