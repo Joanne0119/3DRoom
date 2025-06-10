@@ -106,21 +106,96 @@ void Model::ProcessMaterials(const std::vector<tinyobj::material_t>& objMaterial
             mat.alphaTexture = LoadTexture(mat.alphaTexPath);
         }
         
-        if (!mat.hasLightMap) {
-            // 嘗試查找與材質同名的 light map 檔案
-            std::vector<std::string> lightMapExtensions = {"_lightmap.png", "_lightmap.jpg"};
-            for (const std::string& ext : lightMapExtensions) {
-                std::string lightMapPath = directory + "/" + mat.name + ext;
-                std::ifstream testFile(lightMapPath);
-                if (testFile.good()) {
-                    testFile.close();
+        std::vector<std::string> lightMapExtensions = {"_lightmap.png", "_lightmap.jpg"};
+        for (const std::string& ext : lightMapExtensions) {
+            std::string lightMapPath = directory + "/" + mat.name + ext;
+            
+            // 檢查檔案是否真的存在且可讀
+            std::ifstream testFile(lightMapPath, std::ios::binary);
+            if (testFile.good() && testFile.is_open()) {
+                testFile.close();
+                
+                // 嘗試載入紋理
+                GLuint testTexture = LoadTexture(lightMapPath);
+                if (testTexture != 0 && glIsTexture(testTexture)) {
                     mat.lightMapTexPath = lightMapPath;
-                    mat.lightMapTexture = LoadTexture(mat.lightMapTexPath);
-                    mat.hasLightMap = (mat.lightMapTexture != 0);
-                    std::cout << "  Auto-detected light map: " << lightMapPath << std::endl;
+                    mat.lightMapTexture = testTexture;
+                    mat.hasLightMap = true;
+                    mat.lightMapIntensity = 1.0f;
+                    std::cout << "  Auto-detected light map: " << lightMapPath
+                              << " (ID: " << testTexture << ")" << std::endl;
                     break;
+                } else {
+                    std::cout << "  Light map file exists but failed to load: " << lightMapPath << std::endl;
+                    if (testTexture != 0) {
+                        glDeleteTextures(1, &testTexture);
+                    }
                 }
             }
+        }
+        
+        // 如果沒有找到 Light Map，確保相關變數是正確的
+        if (!mat.hasLightMap) {
+            mat.lightMapTexture = 0;
+            mat.lightMapTexPath = "";
+            mat.lightMapIntensity = 1.0f;
+            std::cout << "  No light map found for material: " << mat.name << std::endl;
+        }
+        
+        if (!mat.hasEnvironmentMap) {
+            std::vector<std::string> envMapPatterns = {
+                mat.name + "_env",
+                mat.name + "_environment",
+                mat.name + "_cubemap",
+                mat.name + "_skybox"
+            };
+            
+            for (const auto& pattern : envMapPatterns) {
+                std::string basePath = directory + "/" + pattern;
+                
+                // 首先嘗試六面 Cube Map
+                GLuint cubeMapTexture = LoadCubeMapFromFiles(basePath);
+                if (cubeMapTexture != 0) {
+                    mat.environmentMapTexture = cubeMapTexture;
+                    mat.environmentMapPath = basePath;
+                    mat.hasEnvironmentMap = true;
+                    mat.reflectivity = 0.3f; // 預設反射率
+                    std::cout << "  Found 6-face cube map: " << basePath << std::endl;
+                    break;
+                }
+                
+                // 如果沒找到六面，嘗試單一檔案
+                std::vector<std::string> extensions = {".png", ".jpg", ".hdr", ".tga"};
+                for (const auto& ext : extensions) {
+                    std::string singlePath = basePath + ext;
+                    std::ifstream testFile(singlePath);
+                    if (testFile.good()) {
+                        testFile.close();
+                        
+                        GLuint envTexture = 0;
+                       
+                        envTexture = LoadCubeMapFromSingleImage(singlePath);
+                        
+                        if (envTexture != 0) {
+                            mat.environmentMapTexture = envTexture;
+                            mat.environmentMapPath = singlePath;
+                            mat.hasEnvironmentMap = true;
+                            mat.reflectivity = 0.3f;
+                            std::cout << "  Found single environment map: " << singlePath << std::endl;
+                            break;
+                        }
+                    }
+                }
+                if (mat.hasEnvironmentMap) break;
+            }
+        }
+        
+        // 如果都沒找到，確保變數正確初始化
+        if (!mat.hasEnvironmentMap) {
+            mat.environmentMapTexture = 0;
+            mat.environmentMapPath = "";
+            mat.reflectivity = 0.0f;
+            std::cout << "  No environment map found for material: " << mat.name << std::endl;
         }
         
         materials.push_back(mat);
@@ -134,7 +209,7 @@ void Model::ProcessMesh(const tinyobj::attrib_t& attrib,
     std::unordered_map<std::string, unsigned int> uniqueVertices;
 
     std::cout << "  Processing mesh with " << shape.mesh.indices.size() / 3 << " faces" << std::endl; // 顯示面數
-
+    std::cout << "  attrib.normals size: " << attrib.normals.size() << std::endl;
     // 處理每個面
     for (size_t f = 0; f < shape.mesh.indices.size(); f += 3) { // 一次處理三個索引（一個三角形）
         for (int i = 0; i < 3; ++i) { // 每個頂點
@@ -184,7 +259,6 @@ void Model::ProcessMesh(const tinyobj::attrib_t& attrib,
             if (uniqueVertices.find(vertexKey) == uniqueVertices.end()) {
                 uniqueVertices[vertexKey] = static_cast<unsigned int>(mesh.vertices.size());
                 mesh.vertices.push_back(vertex);
-
             }
 
             mesh.indices.push_back(uniqueVertices[vertexKey]);
@@ -404,9 +478,10 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
     const Mesh& mesh = meshes[meshIndex];
     
     // 重置紋理單元
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, 0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
     
     // 設置預設值
@@ -415,14 +490,15 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
     glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasSpecularTexture"), 0);
     glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 0);
     glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasLightMap"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasEnvironmentMap"), 0);
     glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.alpha"), 1.0f);
     glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.lightMapIntensity"), 1.0f);
+    glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.reflectivity"), 0.0f);
     
-    // 綁定材質（您現有的材質綁定代碼）
-    if (mesh.materialIndex >= 0 && mesh.materialIndex < materials.size()) {
         // 綁定材質
         if (mesh.materialIndex >= 0 && mesh.materialIndex < materials.size()) {
             const Material& material = materials[mesh.materialIndex];
+            std::cout << "EnvMap: " << material.environmentMapTexture << ", hasEnv: " << material.hasEnvironmentMap << std::endl;
 
             std::cout << "  Applying material: " << material.name << std::endl;
 
@@ -509,11 +585,29 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
             } else {
                 glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasLightMap"), 0);
             }
+            
+            if (material.environmentMapTexture != 0) {
+                glActiveTexture(GL_TEXTURE5);
+                
+                GLint boundTexture;
+                glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &boundTexture);
+                std::cout << "    Bound cube map texture ID: " << boundTexture << std::endl;
+                glBindTexture(GL_TEXTURE_CUBE_MAP, material.environmentMapTexture);
+                
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.environmentMap"), 5);
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasEnvironmentMap"), 1);
+                glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.reflectivity"), material.reflectivity); // 傳遞反射強度
+                
+                std::cout << "    Using environment map texture (ID: " << material.environmentMapTexture
+                                      << "), Reflectivity: " << material.reflectivity << std::endl;
+            } else {
+                glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasEnvironmentMap"), 0);
+            }
 
         } else {
             std::cout << "  Mesh has no material assigned" << std::endl;
         }
-    }
     
     // 渲染
     glBindVertexArray(mesh.VAO);
@@ -527,9 +621,10 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
     }
     
     // 清理紋理綁定
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, 0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
 }
 
@@ -648,4 +743,264 @@ void Model::SetLightMap(const std::string& materialName, const std::string& ligh
             break;
         }
     }
+}
+
+void Model::SetEnvironmentMap(const std::string& materialName, const std::string& environmentMapPath, float reflectivity) {
+    for (auto& mat : materials) {
+        if (mat.name == materialName) {
+            mat.environmentMapPath = environmentMapPath;
+            mat.environmentMapTexture = LoadCubeMapFromSingleImage(environmentMapPath);
+            mat.hasEnvironmentMap = (mat.environmentMapTexture != 0);
+            mat.reflectivity = reflectivity;
+            
+            // 確保反射率在合理範圍內
+            if (mat.reflectivity < 0.0f) mat.reflectivity = 0.0f;
+            if (mat.reflectivity > 1.0f) mat.reflectivity = 1.0f;
+            
+            std::cout << "Set environment map for material '" << materialName
+                      << "': " << environmentMapPath
+                      << " (Texture ID: " << mat.environmentMapTexture
+                      << ", Reflectivity: " << mat.reflectivity << ")" << std::endl;
+            break;
+        }
+    }
+}
+
+void Model::SetEnvironmentMapFromFiles(const std::string& materialName, const std::string& environmentMapPath, float reflectivity) {
+    for (auto& mat : materials) {
+        if (mat.name == materialName) {
+            mat.environmentMapPath = environmentMapPath;
+            mat.environmentMapTexture = LoadCubeMapFromFiles(environmentMapPath);
+            mat.hasEnvironmentMap = (mat.environmentMapTexture != 0);
+            mat.reflectivity = reflectivity;
+            
+            // 確保反射率在合理範圍內
+            if (mat.reflectivity < 0.0f) mat.reflectivity = 0.0f;
+            if (mat.reflectivity > 1.0f) mat.reflectivity = 1.0f;
+            
+            std::cout << "Set environment map for material '" << materialName
+                      << "': " << environmentMapPath
+                      << " (Texture ID: " << mat.environmentMapTexture
+                      << ", Reflectivity: " << mat.reflectivity << ")" << std::endl;
+            break;
+        }
+    }
+}
+
+GLuint Model::LoadCubeMapFromSingleImage(const std::string& path) {
+    // 檢查檔案是否存在
+    std::ifstream file(path);
+    if (!file) {
+        std::cout << "Cube map file not found: " << path << std::endl;
+        return 0;
+    }
+    file.close();
+    
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    
+    stbi_set_flip_vertically_on_load(false); // Cube map 不需要翻轉
+    
+    int width, height, nrComponents;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrComponents, 0);
+    
+    if (data) {
+        GLenum format;
+        if (nrComponents == 3) {
+            format = GL_RGB;
+        } else if (nrComponents == 4) {
+            format = GL_RGBA;
+        } else {
+            std::cout << "Unsupported cube map format: " << nrComponents << " components" << std::endl;
+            stbi_image_free(data);
+            glDeleteTextures(1, &textureID);
+            return 0;
+        }
+        
+        glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+        
+        // 將同一張圖片用於立方體的所有六個面
+        for (unsigned int i = 0; i < 6; i++) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+            
+            // 檢查每個面是否正確上傳
+            GLenum error = glGetError();
+            if (error != GL_NO_ERROR) {
+                std::cout << "OpenGL error uploading cube map face " << i << ": " << error << std::endl;
+            }
+        }
+        
+        // 設置紋理參數 - 這些參數很重要！
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+        
+        // 檢查紋理參數設置是否有錯誤
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            std::cout << "OpenGL error setting cube map parameters: " << error << std::endl;
+        }
+        
+        // 檢查紋理是否完整
+        if (glIsTexture(textureID)) {
+            std::cout << "Successfully created cube map texture (ID: " << textureID << ")" << std::endl;
+        } else {
+            std::cout << "Failed to create valid cube map texture" << std::endl;
+        }
+        
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0); // 解綁
+        stbi_image_free(data);
+        
+        std::cout << "Successfully loaded cube map from single image: " << path
+                  << " (Size: " << width << "x" << height << ", Components: " << nrComponents << ")" << std::endl;
+        
+        return textureID;
+    } else {
+        std::cout << "Failed to load cube map image: " << path << std::endl;
+        std::cout << "STB error: " << stbi_failure_reason() << std::endl;
+        glDeleteTextures(1, &textureID);
+        return 0;
+    }
+}
+
+GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
+    // 定義六個面的標準命名模式
+    std::vector<std::string> faceNames = {
+        "right",   // +X
+        "left",    // -X
+        "top",     // +Y
+        "bottom",  // -Y
+        "front",   // +Z
+        "back"     // -Z
+    };
+    
+    // 支援的擴展名
+    std::vector<std::string> extensions = {".jpg", ".png", ".tga", ".bmp"};
+    
+    std::vector<std::string> facePaths;
+    
+    // 嘗試找到所有六個面的檔案
+    for (const auto& faceName : faceNames) {
+        std::string foundPath = "";
+        
+        // 嘗試不同的命名格式和擴展名
+        std::vector<std::string> namingPatterns = {
+            basePath + "_" + faceName,           // skybox_right.jpg
+            basePath + "/" + faceName,           // skybox/right.jpg
+            basePath + "_" + faceName.substr(0,1), // skybox_r.jpg (首字母)
+        };
+        
+        for (const auto& pattern : namingPatterns) {
+            for (const auto& ext : extensions) {
+                std::string testPath = pattern + ext;
+                std::ifstream file(testPath);
+                if (file.good()) {
+                    file.close();
+                    foundPath = testPath;
+                    break;
+                }
+            }
+            if (!foundPath.empty()) break;
+        }
+        
+        if (foundPath.empty()) {
+            std::cout << "Cube map face not found for: " << faceName
+                      << " (tried patterns: " << basePath << "_" << faceName << ".*)" << std::endl;
+            return 0;
+        }
+        
+        facePaths.push_back(foundPath);
+        std::cout << "Found cube map face: " << foundPath << std::endl;
+    }
+    
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+    
+    // Cube map 不需要翻轉
+    stbi_set_flip_vertically_on_load(false);
+    
+    // 載入每個面
+    for (unsigned int i = 0; i < 6; i++) {
+        int width, height, nrComponents;
+        unsigned char* data = stbi_load(facePaths[i].c_str(), &width, &height, &nrComponents, 0);
+        
+        if (data) {
+            GLenum format;
+            GLenum internalFormat;
+            
+            if (nrComponents == 1) {
+                format = GL_RED;
+                internalFormat = GL_R8;
+            } else if (nrComponents == 3) {
+                format = GL_RGB;
+                internalFormat = GL_RGB8;
+            } else if (nrComponents == 4) {
+                format = GL_RGBA;
+                internalFormat = GL_RGBA8;
+            } else {
+                std::cout << "Unsupported format for face " << i
+                          << ": " << nrComponents << " components" << std::endl;
+                stbi_image_free(data);
+                glDeleteTextures(1, &textureID);
+                return 0;
+            }
+            
+            // 上傳到對應的 cube map 面
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalFormat,
+                        width, height, 0, format, GL_UNSIGNED_BYTE, data);
+            
+            // 檢查錯誤
+            GLenum error = glGetError();
+            if (error != GL_NO_ERROR) {
+                std::cout << "OpenGL error uploading cube map face " << i
+                          << " (" << faceNames[i] << "): " << error << std::endl;
+                stbi_image_free(data);
+                glDeleteTextures(1, &textureID);
+                return 0;
+            }
+            
+            std::cout << "  Loaded face " << i << " (" << faceNames[i] << "): "
+                      << width << "x" << height << ", " << nrComponents << " components" << std::endl;
+            
+            stbi_image_free(data);
+        } else {
+            std::cout << "Failed to load cube map face: " << facePaths[i] << std::endl;
+            std::cout << "STB error: " << stbi_failure_reason() << std::endl;
+            glDeleteTextures(1, &textureID);
+            return 0;
+        }
+    }
+    
+    // 設置紋理參數
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    
+    // 生成 Mipmap（可選但建議）
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    
+    // 最終檢查
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cout << "OpenGL error setting cube map parameters: " << error << std::endl;
+        glDeleteTextures(1, &textureID);
+        return 0;
+    }
+    
+    // 驗證紋理
+    if (!glIsTexture(textureID)) {
+        std::cout << "Failed to create valid cube map texture" << std::endl;
+        glDeleteTextures(1, &textureID);
+        return 0;
+    }
+    
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    
+    std::cout << "Successfully loaded cube map from 6 files (ID: " << textureID << ")" << std::endl;
+    return textureID;
 }

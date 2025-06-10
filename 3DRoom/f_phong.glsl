@@ -56,6 +56,10 @@ struct Material {
     bool hasLightMap;
     
     float lightMapIntensity;
+    
+    samplerCube environmentMap; // 立方體貼圖 sampler
+    bool hasEnvironmentMap;     // 是否有環境貼圖
+    float reflectivity;
 };
 uniform Material uMaterial;
 
@@ -133,7 +137,7 @@ void main() {
     } else {
         N = normalize(vNormal);
     }
-
+//    FragColor = vec4(normalize(vNormal) * 0.5 + 0.5, 1.0); return;
 //    vec3 L = normalize(vLight);
     vec3 V = normalize(vView);
 //    vec3 H = normalize(L + V);  // Halfway vector (Blinn-Phong)
@@ -253,6 +257,36 @@ void main() {
     if(uMaterial.hasLightMap) {
         finalColor.rgb = blendLightMap(finalColor.rgb, lightMapColor, uLightMapBlendMode);
     }
+    
+    if (uMaterial.hasEnvironmentMap && uMaterial.reflectivity > 0.0) {
+        // 計算正確的反射向量：觀察方向是從片元指向攝影機
+        vec3 viewDir = normalize(-vView); // 從片元指向攝影機的向量
+        vec3 R = reflect(-viewDir, N);    // 計算反射向量
+        
+        // 從環境貼圖採樣
+        vec4 envColor = texture(uMaterial.environmentMap, R);
+        
+        if (length(envColor.rgb) > 0.001) {
+           // 根據反射強度混合，使用更明顯的混合
+           float mixFactor = uMaterial.reflectivity;
+           
+           // 可選：根據 Fresnel 效應調整反射強度
+           float fresnel = pow(1.0 - max(dot(N, viewDir), 0.0), 2.0);
+           mixFactor *= (0.5 + 0.5 * fresnel);
+           
+           finalColor.rgb = mix(finalColor.rgb, envColor.rgb, mixFactor);
+       }
+//        FragColor = texture(uMaterial.environmentMap, vec3(0.0, 0.0, 1.0)); return;
+
+        // 可選：直接顯示環境貼圖用於調試
+//         FragColor = vec4(envColor.rgb, finalAlpha); return;
+    }
+    
+//    if (uMaterial.hasEnvironmentMap) {
+//        vec3 R = reflect(-normalize(vView), N);
+//        FragColor = texture(uMaterial.environmentMap, R);
+//        return;
+//    }
     
 //    finalColor.rgb = finalColor.rgb / (finalColor.rgb + vec3(1.0));
 //    finalColor.rgb = pow(finalColor.rgb, vec3(1.0/2.2)); // Gamma correction

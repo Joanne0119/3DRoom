@@ -27,6 +27,7 @@ void main() {
     vec4 worldPos = mxModel * vec4(aPos, 1.0);
     v3Pos   = worldPos.xyz;
     vNormal = normalize((mat3(mxModel) * aNormal));
+//    vNormal = normalize(aNormal); 
     vLight  = normalize(lightPos - v3Pos);
     vView   = normalize(viewPos - v3Pos);
 //    vColor   = aColor;

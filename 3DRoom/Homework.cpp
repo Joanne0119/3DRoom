@@ -11,12 +11,14 @@
 // ✓(2%) 至少三面牆壁上半透明的玻璃
 //(8 %)圖學相關功能的使用，必須在程式碼中以註解清楚標明
     //(1%) 針對特定物件實現 Billboards 的功能
-    //(1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
+// ✓ (1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
+        //在Model.cpp中LoadTexture()中生成midmapp
 // ✓ (2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
         // 在Model.cpp中讀取obj找欲設定light map模型的材質，詳細內容看Model.cpp的RenderMesh()和ProcessMaterials、shader
 // ✓ (2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
         //在Model.cpp中有讀取obj的mtl檔，再寫入shader詳細內容看Model.cpp的RenderMesh()和ProcessMaterials
-//(2%) 有物件使用到 Environment Map 的功能 (有具體的說明在程式碼中）
+// ✓ (2%) 有物件使用到 Environment Map 的功能 (有具體的說明在程式碼中）
+        // 在Model.cpp中LoadCubeMapFromFiles讀取6張cube map的貼圖，RenderMesh()和ProcessMaterials綁到shader上
 //(6%) 其他你覺得可以展示的技術，包含物理或是數學的運算
     //(3%)發射子彈並且在牆壁上留下彈孔
     //(3%)可以破壞房間內的擺設
@@ -157,7 +159,8 @@ std::vector<std::string> modelPaths = {
     "models/toilet.obj",
     "models/desk.obj",
     "models/garden.obj",
-
+    "models/woodCube.obj",
+    "models/woodCube.obj",
     "models/Room001Window.obj",
     
 };
@@ -212,6 +215,8 @@ void loadScene(void)
     }
     models[0]->SetLightMap("room.001", "models/textures/Room001_lightmap.png", 0.5);
     models[6]->SetLightMap("garden", "models/textures/garden_lightmap.png", 0.1);
+    models[7]->SetEnvironmentMapFromFiles("wood", "models/textures/Sunny", 1.0);
+    models[8]->SetEnvironmentMapFromFiles("wood", "models/textures/cubic2", 1.0);
     
 	CCamera::getInstance().updateView(g_eyeloc); // 設定 eye 位置
     CCamera::getInstance().updateCenter(glm::vec3(0,4,0));
@@ -294,7 +299,15 @@ void render(void)
 //            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
 //        }
         
-        
+        if (i == 7) {
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 1.5f, -6.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+        }
+        if (i == 8) {
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(2.0f, 1.5f, -6.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+            modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        }
         
         if (modelLoc != -1) {
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrix));

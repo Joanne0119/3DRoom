@@ -156,6 +156,11 @@ public:
     
     void setFollowLight(CLight* light) { _followLight = light; }
     void SetLightMap(const std::string& materialName, const std::string& lightMapPath, float intensity);
+    void SetEnvironmentMap(const std::string& materialName, const std::string& environmentMapPath, float reflectivity);
+    void SetEnvironmentMapFromFiles(const std::string& materialName, const std::string& environmentMapPath, float reflectivity);
+    
+    GLuint LoadCubeMapFromSingleImage(const std::string& path);
+    GLuint LoadCubeMapFromFiles(const std::string& basePath);
 };
 
 #endif // MODEL_H
