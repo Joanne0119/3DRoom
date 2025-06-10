@@ -7,27 +7,31 @@
 #include <memory>
 
 // AABB 包圍盒結構
+// AABB 包圍盒結構
 struct AABB {
     glm::vec3 min, max;
-    
+    std::string type; // ADDED: To describe the wall segment
+
     AABB() = default;
-    AABB(const glm::vec3& minPoint, const glm::vec3& maxPoint)
-        : min(minPoint), max(maxPoint) {}
-    
+    AABB(const glm::vec3& minPoint, const glm::vec3& maxPoint, const std::string& type_desc = "Generic Wall")
+        : min(minPoint), max(maxPoint), type(type_desc) {}
+
+    // ... (rest of AABB methods remain the same) ...
+
     // 檢查兩個AABB是否相交
     bool intersects(const AABB& other) const {
         return (min.x <= other.max.x && max.x >= other.min.x) &&
                (min.y <= other.max.y && max.y >= other.min.y) &&
                (min.z <= other.max.z && max.z >= other.min.z);
     }
-    
+
     // 檢查點是否在AABB內
     bool contains(const glm::vec3& point) const {
         return point.x >= min.x && point.x <= max.x &&
                point.y >= min.y && point.y <= max.y &&
                point.z >= min.z && point.z <= max.z;
     }
-    
+
     // 更新AABB位置
     void updatePosition(const glm::vec3& offset) {
         min += offset;
@@ -59,6 +63,16 @@ struct Sphere {
     
 };
 
+// Structure to define door parameters for an arched doorway
+struct DoorwayConfig {
+    bool hasDoor = false;
+    glm::vec3 doorCenter; // Center of the door opening (X,Y,Z based on wall plane)
+    float doorWidth = 0.0f; // Total open width
+    float doorHeight = 0.0f; // Total open height
+    float postWidth = 0.0f; // Width of the side posts
+    float lintelHeight = 0.0f; // Height of the top lintel
+};
+
 // 碰撞檢測管理器
 class CollisionManager {
 private:
@@ -77,48 +91,95 @@ public:
     
     // 初始化場景中的牆壁
     void initializeWalls() {
-        // 範例：創建一個房間的牆壁
-        walls.clear();
+        this->walls.clear();
+        float wallThickness = 5.0f;
+
+        float roomX = 28.0f;  // Room 5 X範圍: -14到+14 = 28
+        float roomZ = 24.0f;  // Room 5 Z範圍: 0到24 = 24
+        float roomY = 20.0f;  // 保持原有高度
+        float roomHalfX = roomX / 2.0f;  // 14.0f
+        float roomHalfY = roomY / 2.0f;  // 10.0f
+        float roomHalfZ = roomZ / 2.0f;  // 12.0f
+
+        // Common door dimensions (adjust as needed)
+        float commonDoorWidth = 8.0f;
+        float commonDoorHeight = 15.0f;
+        float commonPostWidth = 2.0f;
+        float commonLintelHeight = 2.0f;
+     
+     // 門的Y軸位置 - 讓門從地板開始 (拱門效果)
+     float doorBottomY = 0.0f;  // 門底部從地板開始 (房間MinY = 0)
+     float doorCenterY = doorBottomY + commonDoorHeight / 2.0f;  // 門中心Y = 6.0f
+     
+        // Room 5 (底部中間) 座標: X=0, Z=12 (Z範圍0-24)
+        glm::vec3 room5Center = glm::vec3(0.0f, roomHalfY, 12.0f);
+        // Room 2 (頂部中間) 座標: X=0, Z=-12 (Z範圍-24-0)
+        glm::vec3 room2Center = glm::vec3(0.0f, roomHalfY, -12.0f);
+        // Room 1 (頂部左邊) 座標: X=-28, Z=-12
+        glm::vec3 room1Center = glm::vec3(-28.0f, roomHalfY, -12.0f);
+        // Room 3 (頂部右邊) 座標: X=+28, Z=-12
+        glm::vec3 room3Center = glm::vec3(28.0f, roomHalfY, -12.0f);
+        // Room 4 (底部左邊) 座標: X=-28, Z=12
+        glm::vec3 room4Center = glm::vec3(-28.0f, roomHalfY, 12.0f);
+        // Room 6 (底部右邊) 座標: X=+28, Z=12
+        glm::vec3 room6Center = glm::vec3(28.0f, roomHalfY, 12.0f);
+
         
-        glm::vec3 roomCenter = glm::vec3(0.0f, 21.5f, 0.0f);
-                
-        float roomHalfSize = 20.0f;
-        // 牆壁厚度
-        float wallThickness = 2.0f;
+        // Define doorway configurations
+        DoorwayConfig doorConfig_R1_R = {true, glm::vec3(room1Center.x + roomHalfX, doorCenterY, room1Center.z), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R2_L = {true, glm::vec3(room2Center.x - roomHalfX, doorCenterY, room2Center.z), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R2_B = {true, glm::vec3(room2Center.x, doorCenterY, room2Center.z + roomHalfZ), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R3_B = {true, glm::vec3(room3Center.x, doorCenterY, room3Center.z + roomHalfZ), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R4_R = {true, glm::vec3(room4Center.x + roomHalfX, doorCenterY, room4Center.z), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R5_F = {true, glm::vec3(room5Center.x, doorCenterY, room5Center.z - roomHalfZ), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R5_L = {true, glm::vec3(room5Center.x - roomHalfX, doorCenterY, room5Center.z), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R5_R = {true, glm::vec3(room5Center.x + roomHalfX, doorCenterY, room5Center.z), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R6_F = {true, glm::vec3(room6Center.x, doorCenterY, room6Center.z - roomHalfZ), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
+        DoorwayConfig doorConfig_R6_L = {true, glm::vec3(room6Center.x - roomHalfX, doorCenterY, room6Center.z), commonDoorWidth, commonDoorHeight, commonPostWidth, commonLintelHeight};
 
-        // 計算房間的內部邊界
-        float roomMinX = roomCenter.x - roomHalfSize; // -5.0f
-        float roomMaxX = roomCenter.x + roomHalfSize; //  5.0f
-        float roomMinY = roomCenter.y - roomHalfSize; //  1.5f
-        float roomMaxY = roomCenter.y + roomHalfSize; // 11.5f
-        float roomMinZ = roomCenter.z - roomHalfSize; // -5.0f
-        float roomMaxZ = roomCenter.z + roomHalfSize; //  5.0f
 
-        // 1. 左牆 (X 軸方向)
-        walls.push_back(AABB(glm::vec3(roomMinX - wallThickness, roomMinY, roomMinZ),
-                               glm::vec3(roomMinX,roomMaxY, roomMaxZ)));
+        // Room 1: Top-Left
+        addRoomWalls(this->walls, 1, room1Center, roomX, roomY, roomZ, wallThickness,
+                     {}, {}, {}, doorConfig_R1_R
+                     );
 
-        // 2. 右牆 (X 軸方向)
-        walls.push_back(AABB(glm::vec3(roomMaxX, roomMinY, roomMinZ),
-                               glm::vec3(roomMaxX + wallThickness, roomMaxY, roomMaxZ)));
+        // Room 2: Top-Middle
+        addRoomWalls(this->walls, 2, room2Center, roomX, roomY, roomZ, wallThickness,
+                     {}, doorConfig_R2_B, doorConfig_R2_L, {}
+                     );
 
-        // 3. 前牆 (Z 軸方向)
-        walls.push_back(AABB(glm::vec3(roomMinX, roomMinY, roomMinZ - wallThickness),
-                               glm::vec3(roomMaxX, roomMaxY, roomMinZ)));
+        // Room 3: Top-Right
+        addRoomWalls(this->walls, 3, room3Center, roomX, roomY, roomZ, wallThickness,
+                     {}, doorConfig_R3_B, {}, {}
+                     );
 
-        // 4. 後牆 (Z 軸方向)
-        walls.push_back(AABB(glm::vec3(roomMinX, roomMinY, roomMaxZ),
-                               glm::vec3(roomMaxX, roomMaxY, roomMaxZ + wallThickness)));
+        // Room 4: Bottom-Left
+        addRoomWalls(this->walls, 4, room4Center, roomX, roomY, roomZ, wallThickness,
+                     {}, {}, {}, doorConfig_R4_R
+                     );
 
-        // 5. 地板 (Y 軸方向)
-        walls.push_back(AABB(glm::vec3(roomMinX, roomMinY - wallThickness, roomMinZ),
-                               glm::vec3(roomMaxX, roomMinY, roomMaxZ)));
+        // Room 5: Bottom-Middle
+        addRoomWalls(this->walls, 5, room5Center, roomX, roomY, roomZ, wallThickness,
+                     doorConfig_R5_F, {}, doorConfig_R5_L, doorConfig_R5_R
+                     );
 
-        // 6. 天花板 (Y 軸方向)
-        walls.push_back(AABB(glm::vec3(roomMinX, roomMaxY, roomMinZ),
-                               glm::vec3(roomMaxX, roomMaxY + wallThickness, roomMaxZ)));
+        // Room 6: Bottom-Right
+        addRoomWalls(this->walls, 6, room6Center, roomX, roomY, roomZ, wallThickness,
+                     doorConfig_R6_F, {}, doorConfig_R6_L, {}
+                     );
+        std::cout << "=== Room Layout Verification ===" << std::endl;
+       std::cout << "Room 5 Center: (" << room5Center.x << ", " << room5Center.y << ", " << room5Center.z << ")" << std::endl;
+       std::cout << "Room 5 Boundaries:" << std::endl;
+       std::cout << "  MinX: " << (room5Center.x - roomHalfX) << " (should be -14)" << std::endl;
+       std::cout << "  MaxX: " << (room5Center.x + roomHalfX) << " (should be +14)" << std::endl;
+       std::cout << "  MinZ: " << (room5Center.z - roomHalfZ) << " (should be 0)" << std::endl;
+       std::cout << "  MaxZ: " << (room5Center.z + roomHalfZ) << " (should be 24)" << std::endl;
+       std::cout << "Door Configuration:" << std::endl;
+       std::cout << "  Door Bottom Y: " << doorBottomY << " (floor level)" << std::endl;
+       std::cout << "  Door Center Y: " << doorCenterY << " (6.0f)" << std::endl;
+       std::cout << "  Door Top Y: " << (doorCenterY + commonDoorHeight/2.0f) << " (12.0f)" << std::endl;
+       std::cout << "=================================" << std::endl;
     }
-    
     // 添加障礙物
     void addObstacle(const AABB& obstacle) {
         obstacles.push_back(obstacle);
@@ -128,31 +189,19 @@ public:
     bool checkCameraCollision(const glm::vec3& newPosition) {
         cameraCollider.center = newPosition;
         
-        // 檢查與牆壁的碰撞
-        // 檢查與牆壁的碰撞
-        for (size_t i = 0; i < walls.size(); ++i) { // Use index to identify the wall
-            const auto& wall = walls[i]; // Get the current wall
+        for (size_t i = 0; i < walls.size(); ++i) {
+            const auto& wall = walls[i];
 
             if (cameraCollider.intersects(wall)) {
-                std::cout << "checkCameraCollision = true" << std::endl;
-                std::cout << "Collision Pos (Camera attempt): (" << newPosition.x << "," << newPosition.y << "," << newPosition.z << ")" << std::endl;
-
-                // --- ADDED DEBUGGING OUTPUT FOR THE COLLIDED WALL ---
-                std::cout << "Collided with Wall #" << i << ":" << std::endl;
-                std::cout << "  Wall Min: (" << wall.min.x << "," << wall.min.y << "," << wall.min.z << ")" << std::endl;
-                std::cout << "  Wall Max: (" << wall.max.x << "," << wall.max.y << "," << wall.max.z << ")" << std::endl;
-                // You can also add more descriptive names if you store them, or map index to names
-                if (i == 0) std::cout << "  Wall Type: Left Wall" << std::endl;
-                else if (i == 1) std::cout << "  Wall Type: Right Wall" << std::endl;
-                else if (i == 2) std::cout << "  Wall Type: Front Wall" << std::endl;
-                else if (i == 3) std::cout << "  Wall Type: Back Wall" << std::endl;
-                else if (i == 4) std::cout << "  Wall Type: Floor" << std::endl;
-                else if (i == 5) std::cout << "  Wall Type: Ceiling" << std::endl;
-                // --- END ADDED DEBUGGING OUTPUT ---
-
-                return true; // Return true as soon as a collision is found
+                std::cout << "Collision Detected!" << std::endl;
+                std::cout << "  Camera Attempted Position: (" << newPosition.x << ", " << newPosition.y << ", " << newPosition.z << ")" << std::endl;
+                std::cout << "  Collided with Wall Segment: " << wall.type << std::endl; // Use the stored type
+                std::cout << "  Wall Min: (" << wall.min.x << ", " << wall.min.y << ", " << wall.min.z << ")" << std::endl; //
+                std::cout << "  Wall Max: (" << wall.max.x << ", " << wall.max.y << ", " << wall.max.z << ")" << std::endl; //
+                return true;
             }
         }
+
 
         // 檢查與障礙物的碰撞
         for (const auto& obstacle : obstacles) {
@@ -345,6 +394,210 @@ public:
             }
         }
         return newPosition;
+    }
+    
+    // Helper function to create a wall segment
+    void createWallSegment(std::vector<AABB>& wallsVec, const glm::vec3& minPoint, const glm::vec3& maxPoint, const std::string& type_desc) {
+        wallsVec.push_back(AABB(minPoint, maxPoint, type_desc));
+    }
+
+    // Function to add a room's walls - MODIFIED FOR ARCHED DOORS
+    void addRoomWalls(std::vector<AABB>& wallsVec, int roomIndex, const glm::vec3& roomCenter, float roomXSize, float roomYSize, float roomZSize, float wallThickness,
+                      DoorwayConfig doorFrontConfig = {}, DoorwayConfig doorBackConfig = {},
+                      DoorwayConfig doorLeftConfig = {}, DoorwayConfig doorRightConfig = {}) {
+
+        float roomHalfX = roomXSize / 2.0f;
+        float roomHalfY = roomYSize / 2.0f;
+        float roomHalfZ = roomZSize / 2.0f;
+
+        float roomMinX = roomCenter.x - roomHalfX;
+        float roomMaxX = roomCenter.x + roomHalfX;
+        float roomMinY = roomCenter.y - roomHalfY;
+        float roomMaxY = roomCenter.y + roomHalfY;
+        float roomMinZ = roomCenter.z - roomHalfZ;
+        float roomMaxZ = roomCenter.z + roomHalfZ;
+
+        std::string roomPrefix = "Room " + std::to_string(roomIndex) + " - ";
+
+        // --- Left Wall (-X) ---
+        if (doorLeftConfig.hasDoor) {
+            float minX = roomMinX - wallThickness;
+            float maxX = roomMinX;
+            float doorBottomY = doorLeftConfig.doorCenter.y - doorLeftConfig.doorHeight / 2.0f;
+            float doorTopY = doorLeftConfig.doorCenter.y + doorLeftConfig.doorHeight / 2.0f;
+            float doorMinZ = doorLeftConfig.doorCenter.z - doorLeftConfig.doorWidth / 2.0f; // Door width on Z-axis for Left/Right walls
+            float doorMaxZ = doorLeftConfig.doorCenter.z + doorLeftConfig.doorWidth / 2.0f;
+
+            // Wall segment below the door (Y-axis)
+            if (roomMinY < doorBottomY) {
+                createWallSegment(wallsVec, glm::vec3(minX, roomMinY, roomMinZ),
+                                  glm::vec3(maxX, doorBottomY, roomMaxZ), roomPrefix + "Left Wall (Below Door)");
+            }
+            // Wall segment above the door (Y-axis)
+            if (roomMaxY > doorTopY) {
+                createWallSegment(wallsVec, glm::vec3(minX, doorTopY, roomMinZ),
+                                  glm::vec3(maxX, roomMaxY, roomMaxZ), roomPrefix + "Left Wall (Above Door)");
+            }
+
+            // Left Post of the door (Z-axis)
+            createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, doorMinZ - doorLeftConfig.postWidth),
+                              glm::vec3(maxX, doorTopY - doorLeftConfig.lintelHeight, doorMinZ), roomPrefix + "Left Wall (Door Left Post)");
+            // Right Post of the door (Z-axis)
+            createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, doorMaxZ),
+                              glm::vec3(maxX, doorTopY - doorLeftConfig.lintelHeight, doorMaxZ + doorLeftConfig.postWidth), roomPrefix + "Left Wall (Door Right Post)");
+            // Lintel of the door (Top horizontal part)
+            createWallSegment(wallsVec, glm::vec3(minX, doorTopY - doorLeftConfig.lintelHeight, doorMinZ),
+                              glm::vec3(maxX, doorTopY, doorMaxZ), roomPrefix + "Left Wall (Door Lintel)");
+
+            // Wall segments to the left/right of the door on the Z-axis
+            if (roomMinZ < doorMinZ - doorLeftConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, roomMinZ),
+                                  glm::vec3(maxX, doorTopY, doorMinZ - doorLeftConfig.postWidth), roomPrefix + "Left Wall (Left of Doorway)");
+            }
+            if (roomMaxZ > doorMaxZ + doorLeftConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, doorMaxZ + doorLeftConfig.postWidth),
+                                  glm::vec3(maxX, doorTopY, roomMaxZ), roomPrefix + "Left Wall (Right of Doorway)");
+            }
+
+        } else {
+            createWallSegment(wallsVec, glm::vec3(roomMinX - wallThickness, roomMinY, roomMinZ),
+                              glm::vec3(roomMinX, roomMaxY, roomMaxZ), roomPrefix + "Left Wall (Solid)");
+        }
+
+
+        // --- Right Wall (+X) ---
+        if (doorRightConfig.hasDoor) {
+            float minX = roomMaxX;
+            float maxX = roomMaxX + wallThickness;
+            float doorBottomY = doorRightConfig.doorCenter.y - doorRightConfig.doorHeight / 2.0f;
+            float doorTopY = doorRightConfig.doorCenter.y + doorRightConfig.doorHeight / 2.0f;
+            float doorMinZ = doorRightConfig.doorCenter.z - doorRightConfig.doorWidth / 2.0f;
+            float doorMaxZ = doorRightConfig.doorCenter.z + doorRightConfig.doorWidth / 2.0f;
+
+            if (roomMinY < doorBottomY) {
+                createWallSegment(wallsVec, glm::vec3(minX, roomMinY, roomMinZ),
+                                  glm::vec3(maxX, doorBottomY, roomMaxZ), roomPrefix + "Right Wall (Below Door)");
+            }
+            if (roomMaxY > doorTopY) {
+                createWallSegment(wallsVec, glm::vec3(minX, doorTopY, roomMinZ),
+                                  glm::vec3(maxX, roomMaxY, roomMaxZ), roomPrefix + "Right Wall (Above Door)");
+            }
+
+            createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, doorMinZ - doorRightConfig.postWidth),
+                              glm::vec3(maxX, doorTopY - doorRightConfig.lintelHeight, doorMinZ), roomPrefix + "Right Wall (Door Left Post)");
+            createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, doorMaxZ),
+                              glm::vec3(maxX, doorTopY - doorRightConfig.lintelHeight, doorMaxZ + doorRightConfig.postWidth), roomPrefix + "Right Wall (Door Right Post)");
+            createWallSegment(wallsVec, glm::vec3(minX, doorTopY - doorRightConfig.lintelHeight, doorMinZ),
+                              glm::vec3(maxX, doorTopY, doorMaxZ), roomPrefix + "Right Wall (Door Lintel)");
+
+            if (roomMinZ < doorMinZ - doorRightConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, roomMinZ),
+                                  glm::vec3(maxX, doorTopY, doorMinZ - doorRightConfig.postWidth), roomPrefix + "Right Wall (Left of Doorway)");
+            }
+            if (roomMaxZ > doorMaxZ + doorRightConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(minX, doorBottomY, doorMaxZ + doorRightConfig.postWidth),
+                                  glm::vec3(maxX, doorTopY, roomMaxZ), roomPrefix + "Right Wall (Right of Doorway)");
+            }
+
+        } else {
+            createWallSegment(wallsVec, glm::vec3(roomMaxX, roomMinY, roomMinZ),
+                              glm::vec3(roomMaxX + wallThickness, roomMaxY, roomMaxZ), roomPrefix + "Right Wall (Solid)");
+        }
+
+
+        // --- Front Wall (-Z) ---
+        if (doorFrontConfig.hasDoor) {
+            float minZ = roomMinZ - wallThickness;
+            float maxZ = roomMinZ;
+            float doorBottomY = doorFrontConfig.doorCenter.y - doorFrontConfig.doorHeight / 2.0f;
+            float doorTopY = doorFrontConfig.doorCenter.y + doorFrontConfig.doorHeight / 2.0f;
+            float doorMinX = doorFrontConfig.doorCenter.x - doorFrontConfig.doorWidth / 2.0f;
+            float doorMaxX = doorFrontConfig.doorCenter.x + doorFrontConfig.doorWidth / 2.0f;
+
+            // Wall segment below the door (Y-axis)
+            if (roomMinY < doorBottomY) {
+                createWallSegment(wallsVec, glm::vec3(roomMinX, roomMinY, minZ),
+                                  glm::vec3(roomMaxX, doorBottomY, maxZ), roomPrefix + "Front Wall (Below Door)");
+            }
+            // Wall segment above the door (Y-axis)
+            if (roomMaxY > doorTopY) {
+                createWallSegment(wallsVec, glm::vec3(roomMinX, doorTopY, minZ),
+                                  glm::vec3(roomMaxX, roomMaxY, maxZ), roomPrefix + "Front Wall (Above Door)");
+            }
+
+            // Left Post of the door (X-axis)
+            createWallSegment(wallsVec, glm::vec3(doorMinX - doorFrontConfig.postWidth, doorBottomY, minZ),
+                              glm::vec3(doorMinX, doorTopY - doorFrontConfig.lintelHeight, maxZ), roomPrefix + "Front Wall (Door Left Post)");
+            // Right Post of the door (X-axis)
+            createWallSegment(wallsVec, glm::vec3(doorMaxX, doorBottomY, minZ),
+                              glm::vec3(doorMaxX + doorFrontConfig.postWidth, doorTopY - doorFrontConfig.lintelHeight, maxZ), roomPrefix + "Front Wall (Door Right Post)");
+            // Lintel of the door (Top horizontal part)
+            createWallSegment(wallsVec, glm::vec3(doorMinX, doorTopY - doorFrontConfig.lintelHeight, minZ),
+                              glm::vec3(doorMaxX, doorTopY, maxZ), roomPrefix + "Front Wall (Door Lintel)");
+
+            // Wall segments to the left/right of the door on the X-axis
+            if (roomMinX < doorMinX - doorFrontConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(roomMinX, doorBottomY, minZ),
+                                  glm::vec3(doorMinX - doorFrontConfig.postWidth, doorTopY, maxZ), roomPrefix + "Front Wall (Left of Doorway)");
+            }
+            if (roomMaxX > doorMaxX + doorFrontConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(doorMaxX + doorFrontConfig.postWidth, doorBottomY, minZ),
+                                  glm::vec3(roomMaxX, doorTopY, maxZ), roomPrefix + "Front Wall (Right of Doorway)");
+            }
+
+        } else {
+            createWallSegment(wallsVec, glm::vec3(roomMinX, roomMinY, roomMinZ - wallThickness),
+                              glm::vec3(roomMaxX, roomMaxY, roomMinZ), roomPrefix + "Front Wall (Solid)");
+        }
+
+
+        // --- Back Wall (+Z) ---
+        if (doorBackConfig.hasDoor) {
+            float minZ = roomMaxZ;
+            float maxZ = roomMaxZ + wallThickness;
+            float doorBottomY = doorBackConfig.doorCenter.y - doorBackConfig.doorHeight / 2.0f;
+            float doorTopY = doorBackConfig.doorCenter.y + doorBackConfig.doorHeight / 2.0f;
+            float doorMinX = doorBackConfig.doorCenter.x - doorBackConfig.doorWidth / 2.0f;
+            float doorMaxX = doorBackConfig.doorCenter.x + doorBackConfig.doorWidth / 2.0f;
+
+            if (roomMinY < doorBottomY) {
+                createWallSegment(wallsVec, glm::vec3(roomMinX, roomMinY, minZ),
+                                  glm::vec3(roomMaxX, doorBottomY, maxZ), roomPrefix + "Back Wall (Below Door)");
+            }
+            if (roomMaxY > doorTopY) {
+                createWallSegment(wallsVec, glm::vec3(roomMinX, doorTopY, minZ),
+                                  glm::vec3(roomMaxX, roomMaxY, maxZ), roomPrefix + "Back Wall (Above Door)");
+            }
+
+            createWallSegment(wallsVec, glm::vec3(doorMinX - doorBackConfig.postWidth, doorBottomY, minZ),
+                              glm::vec3(doorMinX, doorTopY - doorBackConfig.lintelHeight, maxZ), roomPrefix + "Back Wall (Door Left Post)");
+            createWallSegment(wallsVec, glm::vec3(doorMaxX, doorBottomY, minZ),
+                              glm::vec3(doorMaxX + doorBackConfig.postWidth, doorTopY - doorBackConfig.lintelHeight, maxZ), roomPrefix + "Back Wall (Door Right Post)");
+            createWallSegment(wallsVec, glm::vec3(doorMinX, doorTopY - doorBackConfig.lintelHeight, minZ),
+                              glm::vec3(doorMaxX, doorTopY, maxZ), roomPrefix + "Back Wall (Door Lintel)");
+
+            if (roomMinX < doorMinX - doorBackConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(roomMinX, doorBottomY, minZ),
+                                  glm::vec3(doorMinX - doorBackConfig.postWidth, doorTopY, maxZ), roomPrefix + "Back Wall (Left of Doorway)");
+            }
+            if (roomMaxX > doorMaxX + doorBackConfig.postWidth) {
+                createWallSegment(wallsVec, glm::vec3(doorMaxX + doorBackConfig.postWidth, doorBottomY, minZ),
+                                  glm::vec3(roomMaxX, doorTopY, maxZ), roomPrefix + "Back Wall (Right of Doorway)");
+            }
+
+        } else {
+            createWallSegment(wallsVec, glm::vec3(roomMinX, roomMinY, roomMaxZ),
+                              glm::vec3(roomMaxX, roomMaxY, roomMaxZ + wallThickness), roomPrefix + "Back Wall (Solid)");
+        }
+
+
+        // Floor (Y-axis)
+        createWallSegment(wallsVec, glm::vec3(roomMinX, roomMinY - wallThickness, roomMinZ),
+                          glm::vec3(roomMaxX, roomMinY, roomMaxZ), roomPrefix + "Floor");
+
+        // Ceiling (Y-axis)
+        createWallSegment(wallsVec, glm::vec3(roomMinX, roomMaxY, roomMinZ),
+                          glm::vec3(roomMaxX, roomMaxY + wallThickness, roomMaxZ), roomPrefix + "Ceiling");
     }
 };
 

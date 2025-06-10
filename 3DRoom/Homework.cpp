@@ -1,19 +1,20 @@
 //設計一個房間，至少包含六個區域，可以不用柱子，直接用兩個四方形做區隔即可，右邊為示意圖，你可以自己設計，綠色表示鏡頭一開始的位置
 //(12%)畫出六個房間，並達成以下的條件（編譯要能過且正常執行才算）
-    //每一面牆都必須有貼圖
-    //必須至少有三個房間是使用燈光照明，而且是使用 Per Pixel Lighting
-    //每一個房間中都必須有放置裝飾品(部分必須有貼圖)
+// ✓  每一面牆都必須有貼圖
+// ✓  必須至少有三個房間是使用燈光照明，而且是使用 Per Pixel Lighting
+// ✓  每一個房間中都必須有放置裝飾品(部分必須有貼圖)
 // ✓ (2%) 必須有房間顯示至少(含)一個 OBJ 檔的模型，而且包含貼圖
 //(8%)環境與操控
-    // ✓ (2%) 鏡頭的移動是根據目前的視角方向
-    //(2%) 不會穿牆
+// ✓(2%) 鏡頭的移動是根據目前的視角方向
+// ✓(2%) 不會穿牆
     //(2%) 會被機關觸動的動態移動光源，使用 Per Pixel Lighting
-    //(2%) 至少三面牆壁上半透明的玻璃
+// ✓(2%) 至少三面牆壁上半透明的玻璃
 //(8 %)圖學相關功能的使用，必須在程式碼中以註解清楚標明
     //(1%) 針對特定物件實現 Billboards 的功能
     //(1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
     //(2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
-    // ✓ (2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
+// ✓(2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
+        //在Model.cpp中有讀取obj的mtl檔，再寫入shader詳細內容看Model.cpp的RenderMesh()和ProccessM
 //(2%) 有物件使用到 Environment Map 的功能 (有具體的說明在程式碼中）
 //(6%) 其他你覺得可以展示的技術，包含物理或是數學的運算
     //(3%)發射子彈並且在牆壁上留下彈孔
@@ -90,44 +91,52 @@ GLint g_2dviewLoc, g_2dProjLoc;
 CLightManager lightManager;
 // 全域光源 (位置在 5,5,0)
 CLight* g_light = new CLight(
-    glm::vec3(0.0f, 10.0f, 12.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),  // 環境光設定為非常亮的灰色
+    glm::vec3(0.0f, 8.0f, 7.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
     glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
     1.0f, 0.09f, 0.032f
 );
 
 CLight* g_light2 = new CLight(
-    glm::vec3(28.0f, 10.0f, 12.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec3(24.0f, 8.0f, 7.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
     glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
     1.0f, 0.09f, 0.032f
 );
 CLight* g_light3 = new CLight(
-    glm::vec3(-28.0f, 10.0f, 12.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec3(-24.0f, 8.0f, 7.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
     glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
     1.0f, 0.09f, 0.032f
 );
 CLight* g_light4 = new CLight(
-    glm::vec3(-28.0f, 10.0f, -15.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec3(-24.0f, 8.0f, -7.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
     glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
     1.0f, 0.09f, 0.032f
 );
 CLight* g_light5 = new CLight(
-    glm::vec3(0.0f, 10.0f, -15.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec3(0.0f, 8.0f, -7.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
     glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
     1.0f, 0.09f, 0.032f
 );
 CLight* g_light6 = new CLight(
-    glm::vec3(28.0f, 10.0f, -15.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f), // 環境光設定為非常亮的灰色
+    glm::vec3(24.0f, 8.0f, -7.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
+    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
+    1.0f, 0.09f, 0.032f
+);
+
+CLight* env = new CLight(
+    glm::vec3(0.0f, 40.0f, 0.0f),
+    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
     glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
     1.0f, 0.09f, 0.032f
@@ -187,7 +196,15 @@ std::vector<std::unique_ptr<Model>> models;
 std::vector<glm::mat4> modelMatrices;
 std::vector<std::string> modelPaths = {
     "models/Room001.obj",
-    "models/Room001Window.obj"
+//    "models/livingRoomTable.obj",
+//    "models/sofa.obj",
+//    "models/bed.obj",
+//    "models/toilet.obj",
+//    "models/desk.obj",
+//    "models/garden.obj",
+
+    "models/roomWindow.obj",
+    
 };
 
 void genMaterial();
@@ -203,18 +220,20 @@ void loadScene(void)
     
     adjustShaderEffects(3.0f, 4.0f, 2.0f);
     
-    g_light->setIntensity(6.0);
-    g_light2->setIntensity(6.0);
-    g_light3->setIntensity(6.0);
-    g_light4->setIntensity(6.0);
-    g_light5->setIntensity(6.0);
-    g_light6->setIntensity(6.0);
+    g_light->setIntensity(3.0);
+    g_light2->setIntensity(3.0);
+    g_light3->setIntensity(3.0);
+    g_light4->setIntensity(3.0);
+    g_light5->setIntensity(3.0);
+    g_light6->setIntensity(3.0);
+    env->setIntensity(20.0);
     lightManager.addLight(g_light);
     lightManager.addLight(g_light2);
     lightManager.addLight(g_light3);
     lightManager.addLight(g_light4);
     lightManager.addLight(g_light5);
     lightManager.addLight(g_light6);
+    lightManager.addLight(env);
 //    lightManager.addLight(pointLight1);
 //    lightManager.addLight(spotLight1);
 //    lightManager.addLight(spotLight2);
@@ -308,14 +327,22 @@ void render(void)
     GLint modelLoc = glGetUniformLocation(g_shadingProg, "mxModel");
     for (size_t i = 0; i < models.size(); ++i) {
         glm::mat4 modelMatrix = modelMatrices[i];
-        if (i == 0) { 
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
-        }
-        if (i == 1) {
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
-        }
+        modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+        modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+//        if (i == 0) {
+//            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+//            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+//        }
+//        if (i == 1) {
+//            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+//            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+//        }
+//        if (i == 2) {
+//            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+//            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+//        }
+        
+        
         
         if (modelLoc != -1) {
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrix));

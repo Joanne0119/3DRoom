@@ -1,0 +1,13 @@
+# Blender 4.1.1 MTL File: 'cube.blend'
+# www.blender.org
+
+newmtl toilet
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Color_toilet.png
+map_Ks textures/Roughness_toilet.png
+norm textures/Normal_toilet.png
