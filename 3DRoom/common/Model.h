@@ -47,11 +47,13 @@ struct Material {
     GLuint normalTexture;
     GLuint specularTexture;
     GLuint alphaTexture;
+    GLuint lightMapTexture;
     
     std::string diffuseTexPath;
     std::string normalTexPath;
     std::string specularTexPath;
     std::string alphaTexPath;
+    std::string lightMapTexPath;
     
     GLuint environmentMapTexture;    // Cube Map 環境貼圖 ID
     GLuint environmentTexture2D;     // 或使用 Equirectangular 格式的 2D 紋理 ID
@@ -63,11 +65,15 @@ struct Material {
     float refractionIndex;          // 折射率
     bool isEquirectangular;
     
+    bool hasLightMap;           // 是否有 Light Map
+    float lightMapIntensity;    //Light Map 強度控制
+    
     Material() : shininess(32.0f), alpha(1.0f),
                  diffuseTexture(0), normalTexture(0), specularTexture(0), alphaTexture(0),
                  environmentMapTexture(0), environmentTexture2D(0),
                  hasEnvironmentMap(false), reflectivity(0.3f), refractionIndex(1.0f),
-                 isEquirectangular(false) {
+                 isEquirectangular(false),
+                hasLightMap(false), lightMapIntensity(1.0f) {
         ambient[0] = ambient[1] = ambient[2] = 0.2f;
         diffuse[0] = diffuse[1] = diffuse[2] = 0.8f;
         specular[0] = specular[1] = specular[2] = 1.0f;
@@ -149,6 +155,7 @@ public:
     glm::mat4 getModelMatrix() const { return _modelMatrix; }
     
     void setFollowLight(CLight* light) { _followLight = light; }
+    void SetLightMap(const std::string& materialName, const std::string& lightMapPath, float intensity);
 };
 
 #endif // MODEL_H

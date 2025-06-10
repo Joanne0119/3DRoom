@@ -92,9 +92,9 @@ public:
     // 初始化場景中的牆壁
     void initializeWalls() {
         this->walls.clear();
-        float wallThickness = 5.0f;
+        float wallThickness = 1.5f;
 
-        float roomX = 28.0f;  // Room 5 X範圍: -14到+14 = 28
+        float roomX = 26.0f;  // Room 5 X範圍: -13到+13 = 26
         float roomZ = 24.0f;  // Room 5 Z範圍: 0到24 = 24
         float roomY = 20.0f;  // 保持原有高度
         float roomHalfX = roomX / 2.0f;  // 14.0f
@@ -103,7 +103,7 @@ public:
 
         // Common door dimensions (adjust as needed)
         float commonDoorWidth = 8.0f;
-        float commonDoorHeight = 15.0f;
+        float commonDoorHeight = 18.0f;
         float commonPostWidth = 2.0f;
         float commonLintelHeight = 2.0f;
      
@@ -116,13 +116,13 @@ public:
         // Room 2 (頂部中間) 座標: X=0, Z=-12 (Z範圍-24-0)
         glm::vec3 room2Center = glm::vec3(0.0f, roomHalfY, -12.0f);
         // Room 1 (頂部左邊) 座標: X=-28, Z=-12
-        glm::vec3 room1Center = glm::vec3(-28.0f, roomHalfY, -12.0f);
+        glm::vec3 room1Center = glm::vec3(-26.0f, roomHalfY, -12.0f);
         // Room 3 (頂部右邊) 座標: X=+28, Z=-12
-        glm::vec3 room3Center = glm::vec3(28.0f, roomHalfY, -12.0f);
+        glm::vec3 room3Center = glm::vec3(26.0f, roomHalfY, -12.0f);
         // Room 4 (底部左邊) 座標: X=-28, Z=12
-        glm::vec3 room4Center = glm::vec3(-28.0f, roomHalfY, 12.0f);
+        glm::vec3 room4Center = glm::vec3(-26.0f, roomHalfY, 12.0f);
         // Room 6 (底部右邊) 座標: X=+28, Z=12
-        glm::vec3 room6Center = glm::vec3(28.0f, roomHalfY, 12.0f);
+        glm::vec3 room6Center = glm::vec3(26.0f, roomHalfY, 12.0f);
 
         
         // Define doorway configurations
@@ -167,18 +167,6 @@ public:
         addRoomWalls(this->walls, 6, room6Center, roomX, roomY, roomZ, wallThickness,
                      doorConfig_R6_F, {}, doorConfig_R6_L, {}
                      );
-        std::cout << "=== Room Layout Verification ===" << std::endl;
-       std::cout << "Room 5 Center: (" << room5Center.x << ", " << room5Center.y << ", " << room5Center.z << ")" << std::endl;
-       std::cout << "Room 5 Boundaries:" << std::endl;
-       std::cout << "  MinX: " << (room5Center.x - roomHalfX) << " (should be -14)" << std::endl;
-       std::cout << "  MaxX: " << (room5Center.x + roomHalfX) << " (should be +14)" << std::endl;
-       std::cout << "  MinZ: " << (room5Center.z - roomHalfZ) << " (should be 0)" << std::endl;
-       std::cout << "  MaxZ: " << (room5Center.z + roomHalfZ) << " (should be 24)" << std::endl;
-       std::cout << "Door Configuration:" << std::endl;
-       std::cout << "  Door Bottom Y: " << doorBottomY << " (floor level)" << std::endl;
-       std::cout << "  Door Center Y: " << doorCenterY << " (6.0f)" << std::endl;
-       std::cout << "  Door Top Y: " << (doorCenterY + commonDoorHeight/2.0f) << " (12.0f)" << std::endl;
-       std::cout << "=================================" << std::endl;
     }
     // 添加障礙物
     void addObstacle(const AABB& obstacle) {

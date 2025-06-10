@@ -47,19 +47,61 @@ struct Material {
     sampler2D normalTexture;
     sampler2D specularTexture;
     sampler2D alphaTexture;
+    sampler2D lightMapTexture;
     
     bool hasDiffuseTexture;
     bool hasNormalTexture;
     bool hasSpecularTexture;
     bool hasAlphaTexture;
+    bool hasLightMap;
+    
+    float lightMapIntensity;
 };
 uniform Material uMaterial;
+
+uniform float uLightMapGamma = 2.2;      // Light Map 的 Gamma 值
+uniform int uLightMapBlendMode = 0;      // 混合模式：0=Multiply, 1=Add, 2=Screen, 3=Overlay
+uniform bool uUseLightMapAO = false;     // 是否將 Light Map 用作環境光遮蔽
 
 uniform float uNormalStrength = 2.0;
 uniform float uSpecularStrength = 3.0;
 uniform float uSpecularPower = 1.5;
 
 out vec4 FragColor;
+
+vec3 blendLightMap(vec3 baseColor, vec3 lightMap, int blendMode) {
+    switch(blendMode) {
+        case 0:
+            return baseColor * lightMap;
+        case 1:
+            return baseColor + lightMap;
+        case 2:
+            return 1.0 - (1.0 - baseColor) * (1.0 - lightMap);
+        case 3: { // Overlay
+            vec3 result;
+            // Apply overlay blend mode component-wise
+            if (baseColor.r < 0.5) {
+                result.r = 2.0 * baseColor.r * lightMap.r;
+            } else {
+                result.r = 1.0 - 2.0 * (1.0 - baseColor.r) * (1.0 - lightMap.r);
+            }
+            if (baseColor.g < 0.5) {
+                result.g = 2.0 * baseColor.g * lightMap.g;
+            } else {
+                result.g = 1.0 - 2.0 * (1.0 - baseColor.g) * (1.0 - lightMap.g);
+            }
+            if (baseColor.b < 0.5) {
+                result.b = 2.0 * baseColor.b * lightMap.b;
+            } else {
+                result.b = 1.0 - 2.0 * (1.0 - baseColor.b) * (1.0 - lightMap.b);
+            }
+            return result;
+        }
+//
+        default:
+            return baseColor * lightMap;
+    }
+}
 
 void main() {
 
@@ -114,6 +156,24 @@ void main() {
         // float alphaFromTexture = alphaTexture.g;  // Green
         finalAlpha = alphaFromTexture;
     }
+    vec3 lightMapColor = vec3(1.0);
+    float aoFactor = 1.0;
+    
+    if(uMaterial.hasLightMap) {
+        vec4 lightMapSample = texture(uMaterial.lightMapTexture, vTexCoord);
+//        FragColor = vec4(lightMapSample.rgb, 1.0);
+//        return;
+        
+        // 應用 Gamma 校正到 Light Map
+        lightMapColor = pow(lightMapSample.rgb, vec3(uLightMapGamma));
+        lightMapColor *= uMaterial.lightMapIntensity;
+        
+        // 如果使用 Light Map 作為 AO，計算遮蔽因子
+        if(uUseLightMapAO) {
+            aoFactor = dot(lightMapColor, vec3(0.299, 0.587, 0.114)); // 轉換為灰階作為 AO
+            aoFactor = clamp(aoFactor, 0.1, 1.0); // 限制最小值避免過暗
+        }
+    }
 //     finalAlpha = max(finalAlpha, 0.1);
     if(finalAlpha < 0.01) {
        discard;
@@ -164,8 +224,16 @@ void main() {
         vec3 H = normalize(L + V);
         
         // first Ambient
+//        if (i == 0) {
+//            totalAmbient += uLights[i].ambient * uMaterial.ambient * texDiffuse * attenuation * 1.0;
+//        }
         if (i == 0) {
-            totalAmbient += uLights[i].ambient * uMaterial.ambient * texDiffuse * attenuation * 1.0;
+            vec4 ambient = uLights[i].ambient * uMaterial.ambient * texDiffuse * attenuation;
+            // 應用 AO 到環境光
+            if(uUseLightMapAO) {
+                ambient.rgb *= aoFactor;
+            }
+            totalAmbient += ambient;
         }
         
         // Diffuse
@@ -181,6 +249,10 @@ void main() {
     }
     
     finalColor = totalAmbient + totalDiffuse + totalSpecular;
+    
+    if(uMaterial.hasLightMap) {
+        finalColor.rgb = blendLightMap(finalColor.rgb, lightMapColor, uLightMapBlendMode);
+    }
     
 //    finalColor.rgb = finalColor.rgb / (finalColor.rgb + vec3(1.0));
 //    finalColor.rgb = pow(finalColor.rgb, vec3(1.0/2.2)); // Gamma correction

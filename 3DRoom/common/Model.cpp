@@ -106,6 +106,23 @@ void Model::ProcessMaterials(const std::vector<tinyobj::material_t>& objMaterial
             mat.alphaTexture = LoadTexture(mat.alphaTexPath);
         }
         
+        if (!mat.hasLightMap) {
+            // 嘗試查找與材質同名的 light map 檔案
+            std::vector<std::string> lightMapExtensions = {"_lightmap.png", "_lightmap.jpg"};
+            for (const std::string& ext : lightMapExtensions) {
+                std::string lightMapPath = directory + "/" + mat.name + ext;
+                std::ifstream testFile(lightMapPath);
+                if (testFile.good()) {
+                    testFile.close();
+                    mat.lightMapTexPath = lightMapPath;
+                    mat.lightMapTexture = LoadTexture(mat.lightMapTexPath);
+                    mat.hasLightMap = (mat.lightMapTexture != 0);
+                    std::cout << "  Auto-detected light map: " << lightMapPath << std::endl;
+                    break;
+                }
+            }
+        }
+        
         materials.push_back(mat);
     }
 }
@@ -387,7 +404,7 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
     const Mesh& mesh = meshes[meshIndex];
     
     // 重置紋理單元
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -397,7 +414,9 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
     glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasNormalTexture"), 0);
     glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasSpecularTexture"), 0);
     glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 0);
+    glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasLightMap"), 0);
     glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.alpha"), 1.0f);
+    glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.lightMapIntensity"), 1.0f);
     
     // 綁定材質（您現有的材質綁定代碼）
     if (mesh.materialIndex >= 0 && mesh.materialIndex < materials.size()) {
@@ -476,6 +495,20 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
                 glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasAlphaTexture"), 0);  // 添加這行！
                 std::cout << "    No alpha texture" << std::endl;
             }
+            if (material.lightMapTexture != 0) {
+                glActiveTexture(GL_TEXTURE4);
+                glBindTexture(GL_TEXTURE_2D, material.lightMapTexture);
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.lightMapTexture"), 4);
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasLightMap"), 1);
+                glUniform1f(glGetUniformLocation(shaderProgram, "uMaterial.lightMapIntensity"), material.lightMapIntensity);
+                
+               glUniform1f(glGetUniformLocation(shaderProgram, "uLightMapGamma"), 1.0f);
+               glUniform1i(glGetUniformLocation(shaderProgram, "uLightMapBlendMode"), 1);  // 0=Multiply
+               glUniform1i(glGetUniformLocation(shaderProgram, "uUseLightMapAO"), 0);      // 或 1 如果要用作 AO
+                std::cout << "    Using light map texture (ID: " << material.lightMapTexture << ")" << std::endl;
+            } else {
+                glUniform1i(glGetUniformLocation(shaderProgram, "uMaterial.hasLightMap"), 0);
+            }
 
         } else {
             std::cout << "  Mesh has no material assigned" << std::endl;
@@ -494,7 +527,7 @@ void Model::RenderMesh(size_t meshIndex, GLuint shaderProgram) {
     }
     
     // 清理紋理綁定
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -512,6 +545,7 @@ void Model::Cleanup() {
         if (material.normalTexture != 0) glDeleteTextures(1, &material.normalTexture);
         if (material.specularTexture != 0) glDeleteTextures(1, &material.specularTexture);
         if (material.alphaTexture != 0) glDeleteTextures(1, &material.alphaTexture);
+        if (material.lightMapTexture != 0) glDeleteTextures(1, &material.lightMapTexture);
     }
     
     meshes.clear();
@@ -600,5 +634,18 @@ void Model::update(float dt)
         std::cout << "Model radius: " << radius << std::endl;
         std::cout << "Model position: (" << x << ", 0.0, " << z << ")" << std::endl;
         std::cout << "============================" << std::endl;
+    }
+}
+
+void Model::SetLightMap(const std::string& materialName, const std::string& lightMapPath, float intensity = 1.0f) {
+    for (auto& mat : materials) {
+        if (mat.name == materialName) {
+            mat.lightMapTexPath = lightMapPath;
+            mat.lightMapTexture = LoadTexture(lightMapPath);
+            mat.hasLightMap = (mat.lightMapTexture != 0);
+            mat.lightMapIntensity = intensity;
+            std::cout << "Set light map for material '" << materialName << "': " << lightMapPath << std::endl;
+            break;
+        }
     }
 }

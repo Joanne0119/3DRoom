@@ -7,14 +7,15 @@
 //(8%)環境與操控
 // ✓(2%) 鏡頭的移動是根據目前的視角方向
 // ✓(2%) 不會穿牆
-    //(2%) 會被機關觸動的動態移動光源，使用 Per Pixel Lighting
+// ✓(2%) 會被機關觸動的動態移動光源，使用 Per Pixel Lighting
 // ✓(2%) 至少三面牆壁上半透明的玻璃
 //(8 %)圖學相關功能的使用，必須在程式碼中以註解清楚標明
     //(1%) 針對特定物件實現 Billboards 的功能
     //(1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
-    //(2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
-// ✓(2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
-        //在Model.cpp中有讀取obj的mtl檔，再寫入shader詳細內容看Model.cpp的RenderMesh()和ProccessM
+// ✓ (2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
+        // 在Model.cpp中讀取obj找欲設定light map模型的材質，詳細內容看Model.cpp的RenderMesh()和ProcessMaterials、shader
+// ✓ (2%) 有物件使用到 Normal Map 的功能 （有具體的說明在程式碼中）
+        //在Model.cpp中有讀取obj的mtl檔，再寫入shader詳細內容看Model.cpp的RenderMesh()和ProcessMaterials
 //(2%) 有物件使用到 Environment Map 的功能 (有具體的說明在程式碼中）
 //(6%) 其他你覺得可以展示的技術，包含物理或是數學的運算
     //(3%)發射子彈並且在牆壁上留下彈孔
@@ -67,7 +68,7 @@ CollisionManager g_collisionManager;
 CTorusKnot g_tknot(4);
 CSphere g_sphere;
 
-glm::vec3 g_eyeloc(3.0f, 6.0f, 10.0f);
+glm::vec3 g_eyeloc(-28.0f, 6.0f, 10.0f);
 CCube g_centerloc; // view center預設在 (0,0,0)，不做任何描繪操作
 CQuad g_floor[ROW_NUM][ROW_NUM]; 
 
@@ -77,8 +78,10 @@ GLuint g_modelVAO;
 int g_modelVertexCount;
 
 // 2d
-std::array<CButton, 4> g_button = {
+std::array<CButton, 6> g_button = {
     CButton(50.0f, 50.0f, glm::vec4(0.20f, 0.45f, 0.45f, 1.0f), glm::vec4(0.60f, 0.85f, 0.85f, 1.0f)),
+    CButton(50.0f, 50.0f, glm::vec4(0.45f, 0.35f, 0.65f, 1.0f), glm::vec4(0.85f, 0.75f, 0.95f, 1.0f)),
+    CButton(50.0f, 50.0f, glm::vec4(0.45f, 0.35f, 0.65f, 1.0f), glm::vec4(0.85f, 0.75f, 0.95f, 1.0f)),
     CButton(50.0f, 50.0f, glm::vec4(0.45f, 0.35f, 0.65f, 1.0f), glm::vec4(0.85f, 0.75f, 0.95f, 1.0f)),
     CButton(50.0f, 50.0f, glm::vec4(0.45f, 0.35f, 0.65f, 1.0f), glm::vec4(0.85f, 0.75f, 0.95f, 1.0f)),
     CButton(50.0f, 50.0f, glm::vec4(0.45f, 0.35f, 0.65f, 1.0f), glm::vec4(0.85f, 0.75f, 0.95f, 1.0f))
@@ -134,54 +137,6 @@ CLight* g_light6 = new CLight(
     1.0f, 0.09f, 0.032f
 );
 
-CLight* env = new CLight(
-    glm::vec3(0.0f, 40.0f, 0.0f),
-    glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
-    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),
-    glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),
-    1.0f, 0.09f, 0.032f
-);
-//
-//// 創建第一個點光源
-//CLight* pointLight1 = new CLight(
-//     glm::vec3(0.0f, 10.0f, 0.0f),           // 位置
-//     glm::vec4(0.3f, 0.3f, 0.3f, 1.0f),     // 環境光
-//     glm::vec4(0.8f, 0.8f, 0.8f, 1.0f),     // 漫反射
-//     glm::vec4(0.2f, 0.2f, 0.2f, 1.0f),     // 鏡面反射 - 較低
-//    1.0f, 0.09f, 0.032f                    // 衰減參數            // attenuation
-//);
-//
-//// 創建聚光燈
-//CLight* spotLight1 = new CLight(
-//    glm::vec3(-4.0f, 10.0f, 4.0f),        // position
-//    glm::vec3(-3.8f, 0.0f, 3.8f),        // target
-//    12.5f, 20.5f, 2.5f,                 // inner/outer cutoff, exponent
-//    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
-//    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
-//    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
-//    1.0f, 0.09f, 0.032f                  // attenuation
-//);
-//CLight* spotLight2 = new CLight(
-//    glm::vec3(0.0f, 10.0f, -5.0f),        // position
-//    glm::vec3(0.0f, 0.0f, -5.0f),        // target
-//    12.5f, 17.5f, 2.0f,                 // inner/outer cutoff, exponent
-//    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
-//    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
-//    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
-//    1.0f, 0.09f, 0.032f                  // attenuation
-//);
-//CLight* spotLight3 = new CLight(
-//    glm::vec3(4.0f, 10.0f, 0.0f),        // position
-//    glm::vec3(4.0f, 0.0f, 4.0f),        // target
-//    12.5f, 17.5f, 2.0f,                 // inner/outer cutoff, exponent
-//    glm::vec4(0.1f, 0.0f, 0.0f, 1.0f),  // ambient
-//    glm::vec4(0.6f, 0.6f, 0.6f, 1.0f),  // diffuse
-//    glm::vec4(1.0f, 0.8f, 0.8f, 1.0f),  // specular
-//    1.0f, 0.09f, 0.032f                  // attenuation
-//);
-
-
-
 // 全域材質（可依模型分別設定）
 CMaterial g_matBeige;   // 淺米白深麥灰
 CMaterial g_matGray;    //  深麥灰材質
@@ -196,14 +151,14 @@ std::vector<std::unique_ptr<Model>> models;
 std::vector<glm::mat4> modelMatrices;
 std::vector<std::string> modelPaths = {
     "models/Room001.obj",
-//    "models/livingRoomTable.obj",
-//    "models/sofa.obj",
-//    "models/bed.obj",
-//    "models/toilet.obj",
-//    "models/desk.obj",
-//    "models/garden.obj",
+    "models/livingRoomTable.obj",
+    "models/sofa.obj",
+    "models/bed.obj",
+    "models/toilet.obj",
+    "models/desk.obj",
+    "models/garden.obj",
 
-    "models/roomWindow.obj",
+    "models/Room001Window.obj",
     
 };
 
@@ -226,18 +181,13 @@ void loadScene(void)
     g_light4->setIntensity(3.0);
     g_light5->setIntensity(3.0);
     g_light6->setIntensity(3.0);
-    env->setIntensity(20.0);
+//    env->setIntensity(20.0);
     lightManager.addLight(g_light);
     lightManager.addLight(g_light2);
     lightManager.addLight(g_light3);
     lightManager.addLight(g_light4);
     lightManager.addLight(g_light5);
     lightManager.addLight(g_light6);
-    lightManager.addLight(env);
-//    lightManager.addLight(pointLight1);
-//    lightManager.addLight(spotLight1);
-//    lightManager.addLight(spotLight2);
-//    lightManager.addLight(spotLight3);
     
     lightManager.setShaderID(g_shadingProg);
 //    g_light.setShaderID(g_shadingProg, "uLight");
@@ -260,6 +210,8 @@ void loadScene(void)
             std::cout << "Failed to load: " << path << std::endl;
         }
     }
+    models[0]->SetLightMap("room.001", "models/textures/Room001_lightmap.png", 0.5);
+    models[6]->SetLightMap("garden", "models/textures/garden_lightmap.png", 0.1);
     
 	CCamera::getInstance().updateView(g_eyeloc); // 設定 eye 位置
     CCamera::getInstance().updateCenter(glm::vec3(0,4,0));
@@ -274,14 +226,18 @@ void loadScene(void)
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(mxProj));
     
     // 產生  UI 所需的相關資源
-    g_button[0].setScreenPos(500.0f, 80.0f);
+    g_button[0].setScreenPos(570.0f, 150.0f);
     g_button[0].init(g_uiShader);
-    g_button[1].setScreenPos(570.0f, 80.0f);
+    g_button[1].setScreenPos(640.0f, 150.0f);
     g_button[1].init(g_uiShader);
-    g_button[2].setScreenPos(640.0f, 80.0f);
+    g_button[2].setScreenPos(710.0f, 150.0f);
     g_button[2].init(g_uiShader);
-    g_button[3].setScreenPos(710.0f, 80.0f);
+    g_button[3].setScreenPos(570.0f, 80.0f);
     g_button[3].init(g_uiShader);
+    g_button[4].setScreenPos(640.0f, 80.0f);
+    g_button[4].init(g_uiShader);
+    g_button[5].setScreenPos(710.0f, 80.0f);
+    g_button[5].init(g_uiShader);
     g_2dviewLoc = glGetUniformLocation(g_uiShader, "mxView");     // 取得 view matrix 變數位置
     glUniformMatrix4fv(g_2dviewLoc, 1, GL_FALSE, glm::value_ptr(g_2dmxView));
 
@@ -305,6 +261,8 @@ void render(void)
     g_button[1].draw();
     g_button[2].draw();
     g_button[3].draw();
+    g_button[4].draw();
+    g_button[5].draw();
     
     glUseProgram(g_shadingProg);
     
@@ -318,8 +276,6 @@ void render(void)
     // 繪製光源視覺表示
     lightManager.draw();
     
-    g_tknot.uploadMaterial();
-    g_tknot.drawRaw();
     
     g_centerloc.drawRaw();
     
@@ -329,10 +285,6 @@ void render(void)
         glm::mat4 modelMatrix = modelMatrices[i];
         modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
         modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
-//        if (i == 0) {
-//            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
-//            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
-//        }
 //        if (i == 1) {
 //            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
 //            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
