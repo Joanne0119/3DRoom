@@ -95,6 +95,14 @@ void updateCameraPosition(const glm::vec3& movement) {
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(mxView));
 }
 
+void setupCameraFollowObject() {
+    // 假設你想讓第一個模型跟隨攝影機
+    if (!models.empty() && models[9]) {
+        // 設定偏移量：右偏移0, 下偏移1單位, 前方偏移2單位
+        models[9]->setFollowCamera(true, glm::vec3(0.0f, -0.8f, 1.5f), true, 0.0f);
+    }
+}
+
 void initializeCollisionSystem() {
     g_collisionManager.addObstacle(AABB(glm::vec3(-1.0f, -2.0f, -1.0f),
                                        glm::vec3(1.0f, 0.0f, 1.0f)));
@@ -226,6 +234,11 @@ void cursorPosCallback(GLFWwindow* window, double xpos, double ypos) {
         glm::mat4 mxView = CCamera::getInstance().getViewMatrix();
         GLint viewLoc = glGetUniformLocation(g_shadingProg, "mxView");
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(mxView));
+        
+        glm::mat4 currentViewMatrix = CCamera::getInstance().getViewMatrix();
+        glm::vec3 currentCameraPos = CCamera::getInstance().getViewLocation();
+        models[9]->setCameraPos(currentCameraPos);
+        models[9]->setViewMatrix(currentViewMatrix);
     }
 }
 // ---------------------------------------------------------------------------------------

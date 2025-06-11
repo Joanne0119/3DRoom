@@ -674,61 +674,165 @@ void Model::setAutoRotate()
 
 void Model::update(float dt)
 {
-    bool shouldMove = _bautoRotate;
-    if (_followLight != nullptr) {
-        shouldMove = _followLight->isLightOn() && _followLight->isMotionOn();
-    }
+    updateCameraFollow();
     
-    if (shouldMove && _followLight != nullptr) {
-        // 完全同步燈光的運動參數
-        float lightClock = _followLight->getClock();
-        glm::vec3 lightStartPos = _followLight->getStartPos();
-        
-        // 使用與燈光完全相同的計算方式
-        float currentAngle = lightClock * M_PI_2; // 與燈光相同的角度計算
-        float lightRadius = glm::length(lightStartPos); // 燈光的半徑
-        
-        // 計算同步位置 - 方法1：完全跟隨燈光軌跡
-        glm::mat4 mxRot = glm::rotate(glm::mat4(1.0f), currentAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::vec4 pos = glm::vec4(lightStartPos, 1.0f);
-        glm::vec3 calculatedPos = glm::vec3(mxRot * pos);
-        
-        // 添加偏移避免重疊（可調整）
-        glm::vec3 modelOffset = glm::vec3(0.0f, -2.0f, 0.0f); // Y軸向下偏移
-        calculatedPos += modelOffset;
-        
-        _modelMatrix = glm::translate(glm::mat4(1.0f), calculatedPos);
-        _modelMatrix = glm::rotate(_modelMatrix, currentAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-        
-        std::cout << "=== MODEL FOLLOWING LIGHT ===" << std::endl;
-        std::cout << "Light clock: " << lightClock << " / 4.0" << std::endl;
-        std::cout << "Sync angle (degrees): " << glm::degrees(currentAngle) << std::endl;
-        std::cout << "Light radius: " << lightRadius << std::endl;
-        std::cout << "Model position: (" << calculatedPos.x << ", " << calculatedPos.y << ", " << calculatedPos.z << ")" << std::endl;
-        std::cout << "==============================" << std::endl;
-    }
-    else if (shouldMove) {
-        // 修正原始模型旋轉，使其更合理
-        _clock += dt;
-        if (_clock >= 4.0f) { // 改為與燈光相同的周期
-            _clock = 0.0f;
+    float _boundaryLeft = -20.0f;
+    float _boundaryRight = 20.0f;
+    float _boundaryTop = 20.0f;
+    float _boundaryBottom = -20.0f;
+    bool shouldMove = _bautoRotate;
+    if (shouldMove) {
+        // 移動位置
+       glm::vec3 delta = _direction * _speed * dt;
+       _position += delta;
+
+       // 判斷是否碰到邊界 → 如果碰到了就轉彎（右轉 90 度）
+        if (_position.x > _boundaryRight && _direction.x > 0) {
+            _position.x = _boundaryRight;
+            _direction = glm::vec3(0.0f, 0.0f, -1.0f);
+            _targetAngle = glm::radians(180.0f); // 往 -Z
+        }
+        else if (_position.z < _boundaryBottom && _direction.z < 0) {
+            _position.z = _boundaryBottom;
+            _direction = glm::vec3(-1.0f, 0.0f, 0.0f);
+            _targetAngle = glm::radians(270.0f); // 往 -X
+        }
+        else if (_position.x < _boundaryLeft && _direction.x < 0) {
+            _position.x = _boundaryLeft;
+            _direction = glm::vec3(0.0f, 0.0f, 1.0f);
+            _targetAngle = glm::radians(0.0f);   // 往 +Z
+        }
+        else if (_position.z > _boundaryTop && _direction.z > 0) {
+            _position.z = _boundaryTop;
+            _direction = glm::vec3(1.0f, 0.0f, 0.0f);
+            _targetAngle = glm::radians(90.0f);  // 往 +X
         }
         
-        float angle = _clock * M_PI_2; // 改為與燈光相同的角度計算
-        float radius = 10.0f;
+        float angleDiff = _targetAngle - _currentAngle;
+
+        // 保證角度在 -π 到 π 範圍內，避免繞遠路
+        if (angleDiff > glm::pi<float>()) angleDiff -= glm::two_pi<float>();
+        if (angleDiff < -glm::pi<float>()) angleDiff += glm::two_pi<float>();
+
+        // 根據旋轉速度與 dt 計算要轉多少
+        float maxStep = _rotationSpeed * dt;
+        if (glm::abs(angleDiff) < maxStep) {
+            _currentAngle = _targetAngle; // 到了就貼齊
+        } else {
+            _currentAngle += glm::sign(angleDiff) * maxStep;
+        }
+
+        _modelMatrix = glm::translate(glm::mat4(1.0f), _position);
+        _modelMatrix = glm::rotate(_modelMatrix, _currentAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+       std::cout << "=== MODEL TRACK MOVEMENT ===" << std::endl;
+       std::cout << "Position: (" << _position.x << ", " << _position.y << ", " << _position.z << ")" << std::endl;
+       std::cout << "Direction: (" << _direction.x << ", " << _direction.y << ", " << _direction.z << ")" << std::endl;
+       std::cout << "============================" << std::endl;
+    }
+    
+    if (_bSelfRotate) {
+        _selfRotationAngle += _selfRotationSpeed * dt;
         
-        float x = radius * cos(angle);
-        float z = radius * sin(angle);
+        // 保持角度在 0 到 2π 範圍內（可選，避免數值溢出）
+        if (_selfRotationAngle > glm::two_pi<float>()) {
+            _selfRotationAngle -= glm::two_pi<float>();
+        }
+        if (!shouldMove) {
+            _modelMatrix = glm::translate(glm::mat4(1.0f), _position);
+        }
+        _modelMatrix = glm::rotate(_modelMatrix, _selfRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         
-        _modelMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0.0f, z));
-        _modelMatrix = glm::rotate(_modelMatrix, angle, glm::vec3(0.0f, 1.0f, 0.0f));
-        
-        std::cout << "=== MODEL AUTO ROTATION ===" << std::endl;
-        std::cout << "Model clock: " << _clock << " / 4.0" << std::endl;
-        std::cout << "Model angle (degrees): " << glm::degrees(angle) << std::endl;
-        std::cout << "Model radius: " << radius << std::endl;
-        std::cout << "Model position: (" << x << ", 0.0, " << z << ")" << std::endl;
-        std::cout << "============================" << std::endl;
+        std::cout << "=== MODEL SELF ROTATION ===" << std::endl;
+        std::cout << "Self Rotation Angle: " << glm::degrees(_selfRotationAngle) << " degrees" << std::endl;
+        std::cout << "=============================" << std::endl;
+    }
+}
+
+void Model::setFollowCamera(bool follow, const glm::vec3& offset, bool followRotation = true, float rotationOffset = 0.0f) {
+    _followCamera = follow;
+    _cameraOffset = offset;
+    _followCameraRotation = followRotation;
+    _rotationOffset = rotationOffset;
+    
+    if (follow) {
+        std::cout << "Model now following camera with offset: ("
+                  << offset.x << ", " << offset.y << ", " << offset.z << ")";
+        if (followRotation) {
+            std::cout << " and rotation with offset: " << glm::degrees(rotationOffset) << " degrees";
+        }
+        std::cout << std::endl;
+    } else {
+        std::cout << "Model stopped following camera" << std::endl;
+    }
+}
+
+void Model::updateCameraFollow() {
+    if (!_followCamera) return;
+    
+    // 獲取攝影機位置
+    glm::vec3 cameraPos = _cameraPos;
+    
+    // 獲取攝影機的前方、右方、上方向量
+    glm::mat4 viewMatrix = _viewMatrix;
+    glm::vec3 cameraForward = -glm::vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);
+    glm::vec3 cameraRight = glm::vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+    glm::vec3 cameraUp = glm::vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+    
+    // 計算物件應該在的位置
+    // offset.x = 右方偏移, offset.y = 上方偏移, offset.z = 前方偏移
+    glm::vec3 targetPosition = cameraPos +
+                              cameraRight * _cameraOffset.x +
+                              cameraUp * _cameraOffset.y +
+                              cameraForward * _cameraOffset.z;
+    
+    // 更新物件位置
+    _position = targetPosition;
+    
+    float targetAngle = _currentAngle;
+    
+    if (_followCameraRotation) {
+            // 方法1：根據攝影機前方向量計算 Y 軸旋轉角度
+            targetAngle = atan2(cameraForward.x, cameraForward.z) + _rotationOffset;
+            
+            // 或者使用方法2：更精確的四元數轉換
+            // glm::quat cameraRotation = glm::conjugate(glm::quat_cast(viewMatrix));
+            // glm::vec3 eulerAngles = glm::eulerAngles(cameraRotation);
+            // targetAngle = eulerAngles.y + _rotationOffset;
+        }
+    
+    // 更新模型矩陣 - 只有位移，保持原有的旋轉
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), _position);
+    glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), targetAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+    _modelMatrix = translation * rotation;
+    
+    if (_followCameraRotation) {
+        _currentAngle = targetAngle;
+    }
+    
+    static int frameCount = 0;
+    frameCount++;
+    if (frameCount % 60 == 0) {
+        std::cout << "Following model - Position: (" << _position.x << ", " << _position.y << ", " << _position.z << ")";
+        if (_followCameraRotation) {
+            std::cout << ", Rotation: " << glm::degrees(targetAngle) << " degrees";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void Model::setCameraPos(const glm::vec3& pos) {
+    _cameraPos = pos;
+     std::cout << "Model received camera pos: (" << pos.x << ", " << pos.y << ", " << pos.z << ")" << std::endl;
+}
+
+void Model::setViewMatrix(const glm::mat4& viewMatrix) {
+    _viewMatrix = viewMatrix;
+    // Debug 輸出 - 只打印一次避免過多輸出
+    static int debugCount = 0;
+    if (debugCount < 5) {
+        std::cout << "Model received view matrix update " << debugCount << std::endl;
+        debugCount++;
     }
 }
 

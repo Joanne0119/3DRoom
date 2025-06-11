@@ -13,7 +13,6 @@
 #include <iostream>
 
 #include "../models/CShape.h"
-#include "CLight.h"
 // 需要包含 tiny_obj_loader.h
 //#define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -118,7 +117,21 @@ private:
     bool  _bautoRotate = false;
     float _clock = 0.0f;
     glm::mat4 _modelMatrix = glm::mat4(1.0f);
-    CLight* _followLight = nullptr; 
+    glm::vec3 _position = glm::vec3(0.0f);          // 當前位置
+    glm::vec3 _direction = glm::vec3(1.0f, 0.0f, 0.0f); // 初始前進方向（例如沿著 +X）
+    float _speed = 8.0f;
+    float _currentAngle = 0.0f; // 當前旋轉角度（radian）
+    float _targetAngle = 0.0f;  // 目標方向角度（radian）
+    float _rotationSpeed = glm::radians(90.0f); // 每秒旋轉速度
+    bool _followCamera = false;
+    glm::vec3 _cameraOffset = glm::vec3(0.0f);
+    glm::vec3 _cameraPos = glm::vec3(0.0f);
+    glm::mat4 _viewMatrix = glm::mat4(1.0f);
+    bool _followCameraRotation = false;  // 是否跟隨攝影機旋轉
+    float _rotationOffset = 0.0f;        // 相對攝影機的旋轉偏移
+    bool _bSelfRotate = false;     // 自轉模式
+    float _selfRotationSpeed = 1.0f; // 自轉速度 (弧度/秒)
+    float _selfRotationAngle = 0.0f; // 當前自轉角度
 
 public:
     Model() = default;
@@ -153,8 +166,31 @@ public:
         std::cout << "Setting rotation: " << angle << " degrees" << std::endl;
     }
     glm::mat4 getModelMatrix() const { return _modelMatrix; }
+    glm::vec3 getPosition() const { return _position; }
+    void setPosition(const glm::vec3& pos) { _position = pos; }
+
+    glm::vec3 getDirection() const { return _direction; } // 如果沒有，可以根據 _currentAngle 計算
+    void setDirection(const glm::vec3& dir) { _direction = dir; } // 如果需要外部設定
+
+    float getCurrentAngle() const { return _currentAngle; }
+    void setCurrentAngle(float angle) { _currentAngle = angle; } // 為了外部設定，但通常由 update 內部控制
+
+    float getTargetAngle() const { return _targetAngle; }
+    void setTargetAngle(float angle) { _targetAngle = angle; }
     
-    void setFollowLight(CLight* light) { _followLight = light; }
+    void setFollowCamera(bool follow, const glm::vec3& offset, bool followRotation, float rotationOffset);
+    void updateCameraFollow();
+    bool isFollowingCamera() const { return _followCamera; }
+    void setCameraPos(const glm::vec3& pos);
+    void setViewMatrix(const glm::mat4& viewMatrix);
+    
+    void setSelfRotateMode(bool enable, float speed = 2.0f) {
+        _bSelfRotate = enable;
+        _selfRotationSpeed = speed;
+    }
+    
+    bool isSelfRotating() const { return _bSelfRotate; }
+    
     void SetLightMap(const std::string& materialName, const std::string& lightMapPath, float intensity);
     void SetEnvironmentMap(const std::string& materialName, const std::string& environmentMapPath, float reflectivity);
     void SetEnvironmentMapFromFiles(const std::string& materialName, const std::string& environmentMapPath, float reflectivity);

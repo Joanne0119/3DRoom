@@ -19,3 +19,4 @@ glm::vec3 getCameraUp();
 void updateCameraPosition(const glm::vec3& movement);
 void initializeCollisionSystem();
 bool checkModelCollision(const glm::vec3& modelPosition, const glm::vec3& modelSize);
+void setupCameraFollowObject();

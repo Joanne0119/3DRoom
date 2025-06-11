@@ -23,6 +23,8 @@
     //(3%)發射子彈並且在牆壁上留下彈孔
     //(3%)可以破壞房間內的擺設
 //(4%) 創意分數
+// ✓ //玩家模型跟著鏡頭移動旋轉
+// ✓ //有自轉動畫的電風扇模型
 //老師給分，請自行發揮
 
 //#define GLM_ENABLE_EXPERIMENTAL 1
@@ -161,18 +163,18 @@ std::vector<std::string> modelPaths = {
     "models/garden.obj",
     "models/woodCube.obj",
     "models/woodCube.obj",
+    "models/Robot.obj",
+    "models/fan.obj",
     "models/Room001Window.obj",
     
 };
 
-void genMaterial();
 void renderModel(const std::string& modelName, const glm::mat4& modelMatrix);
 void adjustShaderEffects(float normalStrength, float specularStrength, float specularPower);
 
 //----------------------------------------------------------------------------
 void loadScene(void)
 {
-    genMaterial();
     g_shadingProg = CShaderPool::getInstance().getShader("v_phong.glsl", "f_phong.glsl");
     g_uiShader = CShaderPool::getInstance().getShader("ui_vtxshader.glsl", "ui_fragshader.glsl");
     
@@ -252,6 +254,8 @@ void loadScene(void)
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // 設定清除 back buffer 背景的顏色
     glEnable(GL_DEPTH_TEST); // 啟動深度測試
+    
+    setupCameraFollowObject();
 }
 //----------------------------------------------------------------------------
 
@@ -303,11 +307,31 @@ void render(void)
             modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 1.5f, -6.0f));
             modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
         }
-        if (i == 8) {
+        else if (i == 8) {
             modelMatrix = glm::translate(modelMatrix, glm::vec3(2.0f, 1.5f, -6.0f));
             modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
             modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         }
+        else if (i == 9 ){
+            if (models[9]->isFollowingCamera()) {
+                // 取得模型自己計算的矩陣，然後加上縮放
+                modelMatrix = models[9]->getModelMatrix();
+                modelMatrix = glm::scale(modelMatrix, glm::vec3(0.07f));
+                // 可以加上額外的旋轉
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(270.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            } else {
+//                // 如果不跟隨攝影機，使用原來的固定位置
+                modelMatrix = glm::translate(modelMatrix, glm::vec3(5.0f, 1.15f, 5.0f));
+                modelMatrix = glm::scale(modelMatrix, glm::vec3(0.07f));
+                modelMatrix = glm::rotate(modelMatrix, glm::radians(270.0f), glm::vec3(0.0f, 1.5f, 0.0f));
+            }
+        }
+        else if(i == 10){
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(-28.0f, 17.0f, -8.0f));
+            modelMatrix = modelMatrix * models[i]->getModelMatrix();
+            models[10]->setSelfRotateMode(true, 2.0f);
+        }
+        
         
         if (modelLoc != -1) {
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelMatrix));
@@ -319,8 +343,13 @@ void render(void)
 
 void update(float dt)
 {
+    glm::mat4 mxView = CCamera::getInstance().getViewMatrix();
     g_light->update(dt);
 //    models[8]->update(dt);
+    models[9]->setCameraPos(g_eyeloc);
+    models[9]->setViewMatrix(mxView);
+    models[9]->update(dt);
+    models[10]->update(dt);
 }
 
 void releaseAll()
@@ -386,50 +415,6 @@ int main() {
     releaseAll(); // 程式結束前釋放所有的資源
     glfwTerminate();
     return 0;
-}
-
-void genMaterial()
-{
-    // 設定材質
-    g_matBeige.setAmbient(glm::vec4(0.0918f, 0.0906f, 0.0863f, 1.0f));
-    g_matBeige.setDiffuse(glm::vec4(0.8258f, 0.8152f, 0.7765f, 1.0f));
-    g_matBeige.setSpecular(glm::vec4(0.25f, 0.25f, 0.25f, 1.0f));
-    g_matBeige.setShininess(32.0f);
-
-    g_matGray.setAmbient(glm::vec4(0.0690f, 0.06196f, 0.05451f, 1.0f));
-    g_matGray.setDiffuse(glm::vec4(0.6212f, 0.5576f, 0.4906f, 1.0f));
-    g_matGray.setSpecular(glm::vec4(0.20f, 0.20f, 0.20f, 1.0f));
-    g_matGray.setShininess(16.0f);
-
-    g_matWaterBlue.setAmbient(glm::vec4(0.080f, 0.105f, 0.120f, 1.0f));
-    g_matWaterBlue.setDiffuse(glm::vec4(0.560f, 0.740f, 0.840f, 1.0f));
-    g_matWaterBlue.setSpecular(glm::vec4(0.20f, 0.20f, 0.20f, 1.0f));
-    g_matWaterBlue.setShininess(32.0f);
-
-    g_matWaterGreen.setAmbient(glm::vec4(0.075f, 0.120f, 0.090f, 1.0f));
-    g_matWaterGreen.setDiffuse(glm::vec4(0.540f, 0.840f, 0.640f, 1.0f));
-    g_matWaterGreen.setSpecular(glm::vec4(0.20f, 0.20f, 0.20f, 1.0f));
-    g_matWaterGreen.setShininess(32.0f);
-
-    g_matWaterRed.setAmbient(glm::vec4(0.125f, 0.075f, 0.075f, 1.0f));
-    g_matWaterRed.setDiffuse(glm::vec4(0.860f, 0.540f, 0.540f, 1.0f));
-    g_matWaterRed.setSpecular(glm::vec4(0.20f, 0.20f, 0.20f, 1.0f));
-    g_matWaterRed.setShininess(32.0f);
-
-    g_matWoodHoney.setAmbient(glm::vec4(0.180f, 0.164f, 0.130f, 1.0f));
-    g_matWoodHoney.setDiffuse(glm::vec4(0.720f, 0.656f, 0.520f, 1.0f));
-    g_matWoodHoney.setSpecular(glm::vec4(0.30f, 0.30f, 0.30f, 1.0f));
-    g_matWoodHoney.setShininess(24.0f);
-
-    g_matWoodLightOak.setAmbient(glm::vec4(0.200f, 0.180f, 0.160f, 1.0f));
-    g_matWoodLightOak.setDiffuse(glm::vec4(0.800f, 0.720f, 0.640f, 1.0f));
-    g_matWoodLightOak.setSpecular(glm::vec4(0.30f, 0.30f, 0.30f, 1.0f));
-    g_matWoodLightOak.setShininess(24.0f);
-
-    g_matWoodBleached.setAmbient(glm::vec4(0.220f, 0.215f, 0.205f, 1.0f));
-    g_matWoodBleached.setDiffuse(glm::vec4(0.880f, 0.860f, 0.820f, 1.0f));
-    g_matWoodBleached.setSpecular(glm::vec4(0.30f, 0.30f, 0.30f, 1.0f));
-    g_matWoodBleached.setShininess(24.0f);
 }
 
 void adjustShaderEffects(float normalStrength, float specularStrength, float specularPower) {
