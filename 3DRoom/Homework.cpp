@@ -306,12 +306,12 @@ void render(void)
 //        }
         
         if (i == 7) {
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 1.5f, -6.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(-1.0f, 1.5f, -6.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(1.3f));
         }
         else if (i == 8) {
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(2.0f, 1.5f, -6.0f));
-            modelMatrix = glm::scale(modelMatrix, glm::vec3(0.7f));
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(3.0f, 1.5f, -6.0f));
+            modelMatrix = glm::scale(modelMatrix, glm::vec3(1.3f));
             modelMatrix = glm::rotate(modelMatrix, glm::radians(30.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         }
         else if (i == 9 ){
