@@ -973,31 +973,42 @@ GLuint Model::LoadCubeMapFromSingleImage(const std::string& path) {
 }
 
 GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
-    // 定義六個面的標準命名模式
-    std::vector<std::string> faceNames = {
-        "right",   // +X
-        "left",    // -X
-        "top",     // +Y
-        "bottom",  // -Y
-        "front",   // +Z
-        "back"     // -Z
+    // 標準 OpenGL cubemap 面順序和對應的檔案名稱
+    // 注意：這裡的命名對應標準的 OpenGL 座標系
+    std::vector<std::pair<std::string, GLenum>> faces = {
+        {"right",  GL_TEXTURE_CUBE_MAP_POSITIVE_X}, // +X (右)
+        {"left",   GL_TEXTURE_CUBE_MAP_NEGATIVE_X}, // -X (左)
+        {"top",    GL_TEXTURE_CUBE_MAP_POSITIVE_Y}, // +Y (上)
+        {"bottom", GL_TEXTURE_CUBE_MAP_NEGATIVE_Y}, // -Y (下)
+        {"front",  GL_TEXTURE_CUBE_MAP_POSITIVE_Z}, // +Z (前)
+        {"back",   GL_TEXTURE_CUBE_MAP_NEGATIVE_Z}  // -Z (後)
     };
     
     // 支援的擴展名
-    std::vector<std::string> extensions = {".jpg", ".png", ".tga", ".bmp"};
+    std::vector<std::string> extensions = {".jpg", ".png", ".tga", ".bmp", ".hdr"};
     
     std::vector<std::string> facePaths;
     
-    // 嘗試找到所有六個面的檔案
-    for (const auto& faceName : faceNames) {
+    // 找到所有六個面的檔案
+    for (const auto& face : faces) {
         std::string foundPath = "";
+        const std::string& faceName = face.first;
         
-        // 嘗試不同的命名格式和擴展名
+        // 嘗試不同的命名格式
         std::vector<std::string> namingPatterns = {
-            basePath + "_" + faceName,           // skybox_right.jpg
-            basePath + "/" + faceName,           // skybox/right.jpg
-            basePath + "_" + faceName.substr(0,1), // skybox_r.jpg (首字母)
+            basePath + "_" + faceName,              // skybox_right.jpg
+            basePath + "/" + faceName,              // skybox/right.jpg
+            basePath + "_" + faceName.substr(0,1),  // skybox_r.jpg
+            basePath + "_" + std::to_string(&face - &faces[0]), // skybox_0.jpg (索引)
         };
+        
+        // 嘗試常見的替代命名
+        if (faceName == "right") namingPatterns.push_back(basePath + "_px");
+        if (faceName == "left")  namingPatterns.push_back(basePath + "_nx");
+        if (faceName == "top")   namingPatterns.push_back(basePath + "_py");
+        if (faceName == "bottom") namingPatterns.push_back(basePath + "_ny");
+        if (faceName == "front") namingPatterns.push_back(basePath + "_pz");
+        if (faceName == "back")  namingPatterns.push_back(basePath + "_nz");
         
         for (const auto& pattern : namingPatterns) {
             for (const auto& ext : extensions) {
@@ -1013,8 +1024,7 @@ GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
         }
         
         if (foundPath.empty()) {
-            std::cout << "Cube map face not found for: " << faceName
-                      << " (tried patterns: " << basePath << "_" << faceName << ".*)" << std::endl;
+            std::cout << "Cube map face not found for: " << faceName << std::endl;
             return 0;
         }
         
@@ -1026,50 +1036,61 @@ GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
     
-    // Cube map 不需要翻轉
+    // 啟用無縫 cubemap（重要！）
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    
+    // Cubemap 通常不需要垂直翻轉，但根據來源可能需要
     stbi_set_flip_vertically_on_load(false);
     
     // 載入每個面
-    for (unsigned int i = 0; i < 6; i++) {
+    for (size_t i = 0; i < faces.size(); i++) {
         int width, height, nrComponents;
         unsigned char* data = stbi_load(facePaths[i].c_str(), &width, &height, &nrComponents, 0);
         
         if (data) {
-            GLenum format;
-            GLenum internalFormat;
-            
-            if (nrComponents == 1) {
-                format = GL_RED;
-                internalFormat = GL_R8;
-            } else if (nrComponents == 3) {
-                format = GL_RGB;
-                internalFormat = GL_RGB8;
-            } else if (nrComponents == 4) {
-                format = GL_RGBA;
-                internalFormat = GL_RGBA8;
-            } else {
-                std::cout << "Unsupported format for face " << i
-                          << ": " << nrComponents << " components" << std::endl;
-                stbi_image_free(data);
-                glDeleteTextures(1, &textureID);
-                return 0;
+            // 檢查所有面是否為正方形且尺寸相同
+            if (width != height) {
+                std::cout << "Warning: Cubemap face " << faces[i].first
+                         << " is not square (" << width << "x" << height << ")" << std::endl;
             }
             
-            // 上傳到對應的 cube map 面
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, internalFormat,
+            GLenum format, internalFormat;
+            
+            switch (nrComponents) {
+                case 1:
+                    format = GL_RED;
+                    internalFormat = GL_R8;
+                    break;
+                case 3:
+                    format = GL_RGB;
+                    internalFormat = GL_RGB8;
+                    break;
+                case 4:
+                    format = GL_RGBA;
+                    internalFormat = GL_RGBA8;
+                    break;
+                default:
+                    std::cout << "Unsupported format for face " << faces[i].first
+                              << ": " << nrComponents << " components" << std::endl;
+                    stbi_image_free(data);
+                    glDeleteTextures(1, &textureID);
+                    return 0;
+            }
+            
+            // 直接使用對應的 OpenGL 面目標
+            glTexImage2D(faces[i].second, 0, internalFormat,
                         width, height, 0, format, GL_UNSIGNED_BYTE, data);
             
-            // 檢查錯誤
             GLenum error = glGetError();
             if (error != GL_NO_ERROR) {
-                std::cout << "OpenGL error uploading cube map face " << i
-                          << " (" << faceNames[i] << "): " << error << std::endl;
+                std::cout << "OpenGL error uploading cube map face " << faces[i].first
+                          << ": " << error << std::endl;
                 stbi_image_free(data);
                 glDeleteTextures(1, &textureID);
                 return 0;
             }
             
-            std::cout << "  Loaded face " << i << " (" << faceNames[i] << "): "
+            std::cout << "  Loaded face " << faces[i].first << ": "
                       << width << "x" << height << ", " << nrComponents << " components" << std::endl;
             
             stbi_image_free(data);
@@ -1081,17 +1102,16 @@ GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
         }
     }
     
-    // 設置紋理參數
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // 設置紋理參數 - 對 cubemap 很重要
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     
-    // 生成 Mipmap（可選但建議）
+    // 生成 mipmap - 對環境貼圖品質很重要
     glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
     
-    // 最終檢查
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::cout << "OpenGL error setting cube map parameters: " << error << std::endl;
@@ -1099,16 +1119,9 @@ GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
         return 0;
     }
     
-    // 驗證紋理
-    if (!glIsTexture(textureID)) {
-        std::cout << "Failed to create valid cube map texture" << std::endl;
-        glDeleteTextures(1, &textureID);
-        return 0;
-    }
-    
     glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     
-    std::cout << "Successfully loaded cube map from 6 files (ID: " << textureID << ")" << std::endl;
+    std::cout << "Successfully loaded cube map (ID: " << textureID << ")" << std::endl;
     return textureID;
 }
 

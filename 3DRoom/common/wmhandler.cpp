@@ -266,7 +266,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     float shin;
 
     // 移動速度常數
-    const float moveSpeed = 1.0f;
+    const float moveSpeed = 0.6f;
 
     switch (key)
     {
