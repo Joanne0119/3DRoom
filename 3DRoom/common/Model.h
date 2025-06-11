@@ -90,6 +90,12 @@ struct Mesh {
     Mesh() : materialIndex(-1), VAO(0), VBO(0), EBO(0) {}
 };
 
+enum class BillboardType {
+    SPHERICAL,    // 完全面向攝影機（所有軸都對齊）
+    CYLINDRICAL,  // 只繞Y軸旋轉（保持直立）
+    SCREEN_ALIGNED // 與螢幕平面對齊
+};
+
 // 主要的模型類別
 class Model : public CShape {
 private:
@@ -132,6 +138,9 @@ private:
     bool _bSelfRotate = false;     // 自轉模式
     float _selfRotationSpeed = 1.0f; // 自轉速度 (弧度/秒)
     float _selfRotationAngle = 0.0f; // 當前自轉角度
+    bool _isBillboard = false;
+    BillboardType _billboardType = BillboardType::SPHERICAL;
+    glm::vec3 _billboardUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 public:
     Model() = default;
@@ -197,6 +206,16 @@ public:
     
     GLuint LoadCubeMapFromSingleImage(const std::string& path);
     GLuint LoadCubeMapFromFiles(const std::string& basePath);
+    
+    // 設置 Billboard 功能
+   void setBillboard(bool enable, BillboardType type = BillboardType::SPHERICAL);
+   void setBillboardUpVector(const glm::vec3& up);
+   
+   // 計算 Billboard 矩陣
+   glm::mat4 calculateBillboardMatrix(const glm::vec3& cameraPos, const glm::mat4& viewMatrix);
+   glm::mat4 calculateSphericalBillboard(const glm::vec3& cameraPos);
+   glm::mat4 calculateCylindricalBillboard(const glm::vec3& cameraPos);
+   glm::mat4 calculateScreenAlignedBillboard(const glm::mat4& viewMatrix);
 };
 
 #endif // MODEL_H

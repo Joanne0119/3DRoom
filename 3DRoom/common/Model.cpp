@@ -672,82 +672,85 @@ void Model::setAutoRotate()
     if( !_bautoRotate ) _bautoRotate = true;
 }
 
-void Model::update(float dt)
-{
+void Model::update(float dt) {
     updateCameraFollow();
     
+    // 原有的移動和旋轉邏輯...
     float _boundaryLeft = -20.0f;
     float _boundaryRight = 20.0f;
     float _boundaryTop = 20.0f;
     float _boundaryBottom = -20.0f;
     bool shouldMove = _bautoRotate;
+    
     if (shouldMove) {
-        // 移動位置
-       glm::vec3 delta = _direction * _speed * dt;
-       _position += delta;
+        // 移動邏輯保持不變...
+        glm::vec3 delta = _direction * _speed * dt;
+        _position += delta;
 
-       // 判斷是否碰到邊界 → 如果碰到了就轉彎（右轉 90 度）
+        // 邊界檢測和轉向邏輯...
         if (_position.x > _boundaryRight && _direction.x > 0) {
             _position.x = _boundaryRight;
             _direction = glm::vec3(0.0f, 0.0f, -1.0f);
-            _targetAngle = glm::radians(180.0f); // 往 -Z
+            _targetAngle = glm::radians(180.0f);
         }
         else if (_position.z < _boundaryBottom && _direction.z < 0) {
             _position.z = _boundaryBottom;
             _direction = glm::vec3(-1.0f, 0.0f, 0.0f);
-            _targetAngle = glm::radians(270.0f); // 往 -X
+            _targetAngle = glm::radians(270.0f);
         }
         else if (_position.x < _boundaryLeft && _direction.x < 0) {
             _position.x = _boundaryLeft;
             _direction = glm::vec3(0.0f, 0.0f, 1.0f);
-            _targetAngle = glm::radians(0.0f);   // 往 +Z
+            _targetAngle = glm::radians(0.0f);
         }
         else if (_position.z > _boundaryTop && _direction.z > 0) {
             _position.z = _boundaryTop;
             _direction = glm::vec3(1.0f, 0.0f, 0.0f);
-            _targetAngle = glm::radians(90.0f);  // 往 +X
+            _targetAngle = glm::radians(90.0f);
         }
         
-        float angleDiff = _targetAngle - _currentAngle;
+        // 如果不是 Billboard，才進行正常的角度插值
+        if (!_isBillboard) {
+            float angleDiff = _targetAngle - _currentAngle;
+            if (angleDiff > glm::pi<float>()) angleDiff -= glm::two_pi<float>();
+            if (angleDiff < -glm::pi<float>()) angleDiff += glm::two_pi<float>();
 
-        // 保證角度在 -π 到 π 範圍內，避免繞遠路
-        if (angleDiff > glm::pi<float>()) angleDiff -= glm::two_pi<float>();
-        if (angleDiff < -glm::pi<float>()) angleDiff += glm::two_pi<float>();
-
-        // 根據旋轉速度與 dt 計算要轉多少
-        float maxStep = _rotationSpeed * dt;
-        if (glm::abs(angleDiff) < maxStep) {
-            _currentAngle = _targetAngle; // 到了就貼齊
-        } else {
-            _currentAngle += glm::sign(angleDiff) * maxStep;
+            float maxStep = _rotationSpeed * dt;
+            if (glm::abs(angleDiff) < maxStep) {
+                _currentAngle = _targetAngle;
+            } else {
+                _currentAngle += glm::sign(angleDiff) * maxStep;
+            }
         }
-
-        _modelMatrix = glm::translate(glm::mat4(1.0f), _position);
-        _modelMatrix = glm::rotate(_modelMatrix, _currentAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-
-       std::cout << "=== MODEL TRACK MOVEMENT ===" << std::endl;
-       std::cout << "Position: (" << _position.x << ", " << _position.y << ", " << _position.z << ")" << std::endl;
-       std::cout << "Direction: (" << _direction.x << ", " << _direction.y << ", " << _direction.z << ")" << std::endl;
-       std::cout << "============================" << std::endl;
     }
     
-    if (_bSelfRotate) {
-        _selfRotationAngle += _selfRotationSpeed * dt;
-        
-        // 保持角度在 0 到 2π 範圍內（可選，避免數值溢出）
-        if (_selfRotationAngle > glm::two_pi<float>()) {
-            _selfRotationAngle -= glm::two_pi<float>();
-        }
-        if (!shouldMove) {
+    // 計算模型矩陣
+    if (_isBillboard) {
+        // 使用 Billboard 計算
+        _modelMatrix = calculateBillboardMatrix(_cameraPos, _viewMatrix);
+    } else {
+        // 正常的變換計算
+        if (shouldMove || !_bSelfRotate) {
             _modelMatrix = glm::translate(glm::mat4(1.0f), _position);
+            if (!_isBillboard) {
+                _modelMatrix = glm::rotate(_modelMatrix, _currentAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+            }
         }
-        _modelMatrix = glm::rotate(_modelMatrix, _selfRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
         
-        std::cout << "=== MODEL SELF ROTATION ===" << std::endl;
-        std::cout << "Self Rotation Angle: " << glm::degrees(_selfRotationAngle) << " degrees" << std::endl;
-        std::cout << "=============================" << std::endl;
+        // 自轉
+        if (_bSelfRotate) {
+            _selfRotationAngle += _selfRotationSpeed * dt;
+            if (_selfRotationAngle > glm::two_pi<float>()) {
+                _selfRotationAngle -= glm::two_pi<float>();
+            }
+            if (!shouldMove) {
+                _modelMatrix = glm::translate(glm::mat4(1.0f), _position);
+            }
+            _modelMatrix = glm::rotate(_modelMatrix, _selfRotationAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+        }
     }
 }
+
 
 void Model::setFollowCamera(bool follow, const glm::vec3& offset, bool followRotation = true, float rotationOffset = 0.0f) {
     _followCamera = follow;
@@ -1107,4 +1110,115 @@ GLuint Model::LoadCubeMapFromFiles(const std::string& basePath) {
     
     std::cout << "Successfully loaded cube map from 6 files (ID: " << textureID << ")" << std::endl;
     return textureID;
+}
+
+void Model::setBillboard(bool enable, BillboardType type) {
+    _isBillboard = enable;
+    _billboardType = type;
+    
+    if (enable) {
+        std::cout << "Billboard enabled with type: ";
+        switch (type) {
+            case BillboardType::SPHERICAL:
+                std::cout << "SPHERICAL";
+                break;
+            case BillboardType::CYLINDRICAL:
+                std::cout << "CYLINDRICAL";
+                break;
+            case BillboardType::SCREEN_ALIGNED:
+                std::cout << "SCREEN_ALIGNED";
+                break;
+        }
+        std::cout << std::endl;
+    } else {
+        std::cout << "Billboard disabled" << std::endl;
+    }
+}
+
+void Model::setBillboardUpVector(const glm::vec3& up) {
+    _billboardUp = glm::normalize(up);
+}
+
+glm::mat4 Model::calculateBillboardMatrix(const glm::vec3& cameraPos, const glm::mat4& viewMatrix) {
+    switch (_billboardType) {
+        case BillboardType::SPHERICAL:
+            return calculateSphericalBillboard(cameraPos);
+        case BillboardType::CYLINDRICAL:
+            return calculateCylindricalBillboard(cameraPos);
+        case BillboardType::SCREEN_ALIGNED:
+            return calculateScreenAlignedBillboard(viewMatrix);
+        default:
+            return calculateSphericalBillboard(cameraPos);
+    }
+}
+
+glm::mat4 Model::calculateSphericalBillboard(const glm::vec3& cameraPos) {
+    // 計算從物體到攝影機的向量（物體的新前方向）
+    glm::vec3 forward = glm::normalize(cameraPos - _position);
+    
+    // 使用世界座標的上方向量作為參考
+    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    
+    // 計算右方向量
+    glm::vec3 right = glm::normalize(glm::cross(worldUp, forward));
+    
+    // 重新計算上方向量（確保正交）
+    glm::vec3 up = glm::cross(forward, right);
+    
+    // 建立旋轉矩陣
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation[0] = glm::vec4(right, 0.0f);      // X軸
+    rotation[1] = glm::vec4(up, 0.0f);         // Y軸
+    rotation[2] = glm::vec4(forward, 0.0f);    // Z軸
+    
+    // 結合位移和旋轉
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), _position);
+    
+    return translation * rotation;
+}
+
+glm::mat4 Model::calculateCylindricalBillboard(const glm::vec3& cameraPos) {
+    // 計算攝影機在XZ平面上的投影位置
+    glm::vec3 cameraXZ = glm::vec3(cameraPos.x, _position.y, cameraPos.z);
+    
+    // 計算從物體到攝影機在XZ平面的方向
+    glm::vec3 forward = glm::normalize(cameraXZ - _position);
+    
+    // 使用固定的上方向量
+    glm::vec3 up = _billboardUp;
+    
+    // 計算右方向量
+    glm::vec3 right = glm::normalize(glm::cross(up, forward));
+    
+    // 重新正交化前方向量
+    forward = glm::cross(right, up);
+    
+    // 建立旋轉矩陣
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation[0] = glm::vec4(right, 0.0f);
+    rotation[1] = glm::vec4(up, 0.0f);
+    rotation[2] = glm::vec4(forward, 0.0f);
+    
+    // 結合位移和旋轉
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), _position);
+    
+    return translation * rotation;
+}
+
+glm::mat4 Model::calculateScreenAlignedBillboard(const glm::mat4& viewMatrix) {
+    // 從視圖矩陣中提取攝影機的座標軸
+    glm::vec3 right = glm::vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+    glm::vec3 up = glm::vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+    glm::vec3 forward = -glm::vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);
+    
+    // 建立旋轉矩陣（直接使用攝影機的座標軸）
+    glm::mat4 rotation = glm::mat4(1.0f);
+    rotation[0] = glm::vec4(right, 0.0f);
+    rotation[1] = glm::vec4(up, 0.0f);
+    rotation[2] = glm::vec4(forward, 0.0f);
+    
+    // 結合位移和旋轉
+    glm::mat4 translation = glm::translate(glm::mat4(1.0f), _position);
+    
+    return translation * rotation;
 }

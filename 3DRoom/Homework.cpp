@@ -10,7 +10,8 @@
 // ✓(2%) 會被機關觸動的動態移動光源，使用 Per Pixel Lighting
 // ✓(2%) 至少三面牆壁上半透明的玻璃
 //(8 %)圖學相關功能的使用，必須在程式碼中以註解清楚標明
-    //(1%) 針對特定物件實現 Billboards 的功能
+// ✓ (1%) 針對特定物件實現 Billboards 的功能
+        //在Model.cpp中setBillboard等計算Billboard的功能，從主函式設定camera pos和view Matrix傳回函式使用
 // ✓ (1%) 使用到  Mipmapped 的功能 （有具體的說明在程式碼中）
         //在Model.cpp中LoadTexture()中生成midmapp
 // ✓ (2%) 有房間使用到 Light Map 的功能 （有具體的說明在程式碼中）
@@ -165,6 +166,7 @@ std::vector<std::string> modelPaths = {
     "models/woodCube.obj",
     "models/Robot.obj",
     "models/fan.obj",
+    "models/sign.obj",
     "models/Room001Window.obj",
     
 };
@@ -327,9 +329,14 @@ void render(void)
             }
         }
         else if(i == 10){
-            modelMatrix = glm::translate(modelMatrix, glm::vec3(-28.0f, 17.0f, -8.0f));
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(-30.0f, 17.0f, -8.0f));
             modelMatrix = modelMatrix * models[i]->getModelMatrix();
             models[10]->setSelfRotateMode(true, 2.0f);
+        }
+        else if(i == 11){
+            modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 1.0f, -12.0f));
+            modelMatrix = modelMatrix * models[i]->getModelMatrix();
+            models[11]->setBillboard(true, BillboardType::SPHERICAL);
         }
         
         
@@ -348,8 +355,11 @@ void update(float dt)
 //    models[8]->update(dt);
     models[9]->setCameraPos(g_eyeloc);
     models[9]->setViewMatrix(mxView);
+    models[11]->setCameraPos(g_eyeloc);
+    models[11]->setViewMatrix(mxView);
     models[9]->update(dt);
     models[10]->update(dt);
+    models[11]->update(dt);
 }
 
 void releaseAll()
